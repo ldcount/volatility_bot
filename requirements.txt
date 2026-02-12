@@ -2,3 +2,4 @@ python-telegram-bot
 requests
 pybit
 APScheduler
+python-dotenv

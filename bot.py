@@ -1,5 +1,10 @@
 import logging
 import asyncio
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 from telegram import Update
 from telegram.ext import (
     ApplicationBuilder,
@@ -58,7 +63,9 @@ async def scan_funding_job(context: ContextTypes.DEFAULT_TYPE):
     loop = asyncio.get_event_loop()
     # Use default threshold from add_func (-0.01) or specify it here if needed.
     # User wanted -0.01 (1%)
-    report = await loop.run_in_executor(None, check_extreme_funding)
+    # Get threshold from env, default to -0.015 if not set
+    threshold = float(os.getenv("FUNDING_THRESHOLD", -0.015))
+    report = await loop.run_in_executor(None, check_extreme_funding, threshold)
 
     if report:
         # Send to the user who started the bot?
@@ -82,7 +89,7 @@ def start_scanning_job(context, chat_id):
             if not current_jobs:
                 context.job_queue.run_repeating(
                     scan_funding_job,
-                    interval=1200,  # 20 minutes
+                    interval=int(os.getenv("SCAN_INTERVAL", 1200)),
                     first=10,
                     chat_id=chat_id,
                     name=str(chat_id),
@@ -193,10 +200,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # 3. THE ENGINE
 if __name__ == "__main__":
     # original prod token
-    # TOKEN = "8567746274:AAGUyI4c5Kt5uETiB9SbwMFbi8sPnOzqr8I"
+    # TOKEN = os.getenv("TELEGRAM_TOKEN_PROD")
 
-    # development token for MyStrategyDevBot
-    TOKEN = "8407333658:AAFOsgpuO-KhUTL-7VNQfqEQxHGYjRmrN7o"
+    # development token for DevelopmentDloBot
+    TOKEN = os.getenv("TELEGRAM_TOKEN_DEV")
+
+    if not TOKEN:
+        print("Error: TELEGRAM_TOKEN_DEV not found in .env file.")
+        exit(1)
 
     application = ApplicationBuilder().token(TOKEN).build()
 

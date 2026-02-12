@@ -73,7 +73,7 @@ def get_top_funding_rates(limit=10):
     if not top_tickers:
         return "ℹ️ No coins with negative funding rates found."
 
-    report = "📉 **Most Negative Funding Rates**\n\n"
+    report = "📉 *Most Negative Funding*\n\n"
     for i, (symbol, rate) in enumerate(top_tickers, 1):
         # Rate is usually 8-hour rate. User wants %.
         # e.g. -0.005 is -0.5%
@@ -110,7 +110,7 @@ def check_extreme_funding(threshold=-0.015):
     # Sort by funding rate for better visibility (lowest (most extreme) first)
     extreme_tickers.sort(key=lambda x: x[1])
 
-    report = "🚨 **EXTREME FUNDING RATES DETECTED** 🚨\n\n"
+    report = "🚨 *EXTREME FUNDING* 🚨\n\n"
     for symbol, rate in extreme_tickers:
         report += f"**{symbol}**: {rate*100:.4f}%\n"
 

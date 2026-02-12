@@ -15,8 +15,7 @@ from telegram.ext import (
 )
 
 # IMPORT YOUR EXISTING MODULES
-# Assuming your previous file is named 'TickerGrubProServer.py'
-from TickerGrubProServer import validate_ticker, fetch_market_data, analyze_market_data
+from data_processing import validate_ticker, fetch_market_data, analyze_market_data
 from add_func import get_top_funding_rates, check_extreme_funding  # [NEW]
 
 # 1. SETUP LOGGING (So you can see errors in the console)
@@ -200,10 +199,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # 3. THE ENGINE
 if __name__ == "__main__":
     # original prod token
-    TOKEN = os.getenv("TELEGRAM_TOKEN_PROD")
+    # TOKEN = os.getenv("TELEGRAM_TOKEN_PROD")
 
     # development token for DevelopmentDloBot
-    # TOKEN = os.getenv("TELEGRAM_TOKEN_DEV")
+    TOKEN = os.getenv("TELEGRAM_TOKEN_DEV")
 
     if not TOKEN:
         print("Error: TELEGRAM_TOKEN_PROD not found in .env file.")

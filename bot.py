@@ -200,13 +200,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # 3. THE ENGINE
 if __name__ == "__main__":
     # original prod token
-    # TOKEN = os.getenv("TELEGRAM_TOKEN_PROD")
+    TOKEN = os.getenv("TELEGRAM_TOKEN_PROD")
 
     # development token for DevelopmentDloBot
-    TOKEN = os.getenv("TELEGRAM_TOKEN_DEV")
+    # TOKEN = os.getenv("TELEGRAM_TOKEN_DEV")
 
     if not TOKEN:
-        print("Error: TELEGRAM_TOKEN_DEV not found in .env file.")
+        print("Error: TELEGRAM_TOKEN_PROD not found in .env file.")
         exit(1)
 
     application = ApplicationBuilder().token(TOKEN).build()

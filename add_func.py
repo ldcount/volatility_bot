@@ -77,7 +77,8 @@ def get_top_funding_rates(limit=10):
     for i, (symbol, rate) in enumerate(top_tickers, 1):
         # Rate is usually 8-hour rate. User wants %.
         # e.g. -0.005 is -0.5%
-        report += f"{i}. **{symbol}**: {rate*100:.2f}%\n"
+        # Link to Bybit spot/perpetual trade. Usually https://www.bybit.com/trade/usdt/SYMBOL
+        report += f"{i}. [{symbol}](https://www.bybit.com/trade/usdt/{symbol}): {rate*100:.2f}%\n"
 
     return report
 
@@ -112,6 +113,8 @@ def check_extreme_funding(threshold=-0.015):
 
     report = "🚨 *EXTREME FUNDING ALERT* 🚨\n\n"
     for symbol, rate in extreme_tickers:
-        report += f"**{symbol}**: {rate*100:.4f}%\n"
+        report += (
+            f"[{symbol}](https://www.bybit.com/trade/usdt/{symbol}): {rate*100:.4f}%\n"
+        )
 
     return report

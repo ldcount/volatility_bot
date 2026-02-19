@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
-from telegram import Update
+from telegram import Update, LinkPreviewOptions
 from telegram.ext import (
     ApplicationBuilder,
     ContextTypes,
@@ -53,7 +53,11 @@ async def funding(update: Update, context: ContextTypes.DEFAULT_TYPE):
     loop = asyncio.get_event_loop()
     report = await loop.run_in_executor(None, get_top_funding_rates)
 
-    await status_msg.edit_text(report, parse_mode="Markdown")
+    await status_msg.edit_text(
+        report,
+        parse_mode="Markdown",
+        link_preview_options=LinkPreviewOptions(is_disabled=True),
+    )
 
 
 async def scan_funding_job(context: ContextTypes.DEFAULT_TYPE):
@@ -74,7 +78,10 @@ async def scan_funding_job(context: ContextTypes.DEFAULT_TYPE):
         job = context.job
         if job.chat_id:
             await context.bot.send_message(
-                job.chat_id, text=report, parse_mode="Markdown"
+                job.chat_id,
+                text=report,
+                parse_mode="Markdown",
+                link_preview_options=LinkPreviewOptions(is_disabled=True),
             )
         else:
             print("[Job] Error: No chat_id in job context.")
@@ -202,7 +209,7 @@ if __name__ == "__main__":
     TOKEN = os.getenv("TELEGRAM_TOKEN_PROD")
 
     # development token for DevelopmentDloBot
-    # TOKEN = os.getenv("TELEGRAM_TOKEN_DEV")
+    #TOKEN = os.getenv("TELEGRAM_TOKEN_DEV")
 
     if not TOKEN:
         print("Error: TELEGRAM_TOKEN_PROD not found in .env file.")

@@ -243,7 +243,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Worst Dump: {stats['max_dump_val']*100:.2f}% on {stats['max_dump_date']}\n"
             f"Average Dump: {stats['avg_dump']*100:.2f}%\n"
             f"Dump Deviation (Std): {stats['std_dump']*100:.2f}%\n\n"
-            f"📏 **ATR (Average True Range)**\n"
+            f"↕️ **ATR (Average True Range)**\n"
             f"ATR 14: {stats['atr_14']:.6f}\n"
             f"ATR 28: {stats['atr_28']:.6f}\n"
             f"ATR 28 to close: {stats['atr_relative']*100:.2f}%\n\n"

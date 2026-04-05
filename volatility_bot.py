@@ -17,6 +17,7 @@ from telegram.ext import (
 # IMPORT YOUR EXISTING MODULES
 from data_processing import validate_ticker, fetch_market_data, analyze_market_data
 from add_func import get_top_funding_rates, get_top_positive_funding_rates, check_extreme_funding, get_24h_turnover
+from turnover import get_lowest_turnover
 
 # 1. SETUP LOGGING (So you can see errors in the console)
 logging.basicConfig(
@@ -67,6 +68,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Commands:\n"
         "/negative — top negative funding rates\n"
         "/positive — top positive funding rates\n"
+        "/turnover — 30 lowest 24H turnover symbols\n"
         "/frequency <min> — set background scan interval\n"
         "/help — list all commands"
     )
@@ -104,6 +106,29 @@ async def positive(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown",
         link_preview_options=LinkPreviewOptions(is_disabled=True),
     )
+
+
+async def turnover(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Sends the 30 symbols with the lowest 24H turnover in two messages."""
+    status_msg = await update.message.reply_text("🔍 Fetching turnover data...")
+
+    loop = asyncio.get_event_loop()
+    report_1, report_2 = await loop.run_in_executor(None, get_lowest_turnover)
+
+    # First message (1-15)
+    await status_msg.edit_text(
+        report_1,
+        parse_mode="Markdown",
+        link_preview_options=LinkPreviewOptions(is_disabled=True),
+    )
+
+    # Second message (16-30)
+    if report_2:
+        await update.message.reply_text(
+            report_2,
+            parse_mode="Markdown",
+            link_preview_options=LinkPreviewOptions(is_disabled=True),
+        )
 
 
 async def scan_funding_job(context: ContextTypes.DEFAULT_TYPE):
@@ -233,6 +258,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/start — Initialize the bot and start background funding scan\n"
         "/negative — Fetch the top 10 most negative funding rates right now\n"
         "/positive — Fetch the top 10 most positive funding rates right now\n"
+        "/turnover — Show the 30 symbols with the lowest 24H turnover\n"
         "/rate — Show current funding alert threshold\n"
         "/rate <negative %> — Change alert threshold (e.g. `/rate -1,2`)\n"
         "/frequency <min> — Change how often the background scan runs "
@@ -362,6 +388,7 @@ if __name__ == "__main__":
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("negative", negative))
     application.add_handler(CommandHandler("positive", positive))
+    application.add_handler(CommandHandler("turnover", turnover))
     application.add_handler(CommandHandler("rate", rate))
     application.add_handler(CommandHandler("frequency", frequency))
     application.add_handler(CommandHandler("help", help_command))

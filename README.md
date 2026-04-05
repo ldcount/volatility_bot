@@ -15,6 +15,7 @@ A Telegram bot that analyzes crypto market volatility using Bybit market data.
 - Supports funding-rate features:
   - `/negative` command for most negative funding rates (with OKX comparison)
   - `/positive` command for most positive funding rates (with OKX comparison)
+  - `/turnover` command for the 30 lowest 24H turnover symbols
   - Background scan for extreme negative funding rates with configurable frequency
 
 ## Bot commands
@@ -24,6 +25,7 @@ A Telegram bot that analyzes crypto market volatility using Bybit market data.
 | `/start` | Initialize the bot and begin the background funding scan for your chat. |
 | `/negative` | Fetch the top 10 most negative funding rates on Bybit right now (with OKX comparison). |
 | `/positive` | Fetch the top 10 most positive funding rates on Bybit right now (with OKX comparison). |
+| `/turnover` | Show the 30 symbols with the lowest 24H turnover (split into two messages). |
 | `/rate` | Show the current funding alert threshold used by the background scan for your chat. |
 | `/rate -1,2` | Change the funding alert threshold to `-1.2%` while the bot is running. |
 | `/frequency <minutes>` | Set how often the background scan runs. E.g. `/frequency 30` = every 30 min, `/frequency 1` = every minute. |
@@ -35,6 +37,7 @@ A Telegram bot that analyzes crypto market volatility using Bybit market data.
 - `volatility_bot.py` — Telegram bot entrypoint and command/message handlers.
 - `data_processing.py` — Core market validation, data fetching, and analysis logic.
 - `add_func.py` — Funding-rate data collection and alert helpers.
+- `turnover.py` — Lowest-turnover symbol lookup.
 - `requirements.txt` — Python dependencies.
 - `TickerGrubProServer.service` — Example systemd unit file.
 - `stats_dictionary_example.md` — Example shape of computed stats.
@@ -81,6 +84,7 @@ Once running, in Telegram:
 - `/start` — initialize the bot and begin background funding scan.
 - `/negative` — view the top negative funding rates on demand.
 - `/positive` — view the top positive funding rates on demand.
+- `/turnover` — view the 30 symbols with the lowest 24H turnover.
 - `/rate` — view the current funding alert threshold.
 - `/rate -1,2` — change the funding alert threshold to `-1.2%`.
 - `/frequency 30` — change the background scan to run every 30 minutes.

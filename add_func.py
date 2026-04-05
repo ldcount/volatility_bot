@@ -111,6 +111,46 @@ def get_top_funding_rates(limit=10):
     return report
 
 
+def get_top_positive_funding_rates(limit=10):
+    """
+    Returns a formatted string of the top 'limit' coins with the highest
+    (most positive) funding rates on Bybit, alongside OKX cross-reference.
+    """
+    tickers = get_funding_data()
+    if not tickers:
+        return "⚠️ Error: Could not fetch funding data."
+
+    # Filter for positive funding rates
+    valid_tickers = []
+    for t in tickers:
+        fr_str = t.get("fundingRate", "")
+        if fr_str:
+            try:
+                fr = float(fr_str)
+                if fr > 0:
+                    valid_tickers.append((t["symbol"], fr))
+            except ValueError:
+                continue
+
+    # Sort descending (most positive first)
+    valid_tickers.sort(key=lambda x: x[1], reverse=True)
+    top_tickers = valid_tickers[:limit]
+
+    if not top_tickers:
+        return "ℹ️ No coins with positive funding rates found."
+
+    report = "🟢 *Top 10 positive funding*\n\n"
+    for i, (symbol, rate) in enumerate(top_tickers, 1):
+        okx_rate = get_okx_funding_rate(symbol)
+        okx_part = _format_okx_bracket(okx_rate)
+        report += (
+            f"{i}. [{symbol}](https://www.bybit.com/trade/usdt/{symbol}): "
+            f"{rate * 100:.4f}% {okx_part}\n"
+        )
+
+    return report
+
+
 def check_extreme_funding(threshold=-0.015):
     """
     Scans for coins with funding rates <= threshold (default -1.5%).

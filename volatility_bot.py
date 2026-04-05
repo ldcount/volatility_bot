@@ -16,7 +16,7 @@ from telegram.ext import (
 
 # IMPORT YOUR EXISTING MODULES
 from data_processing import validate_ticker, fetch_market_data, analyze_market_data
-from add_func import get_top_funding_rates, check_extreme_funding  # [NEW]
+from add_func import get_top_funding_rates, get_top_positive_funding_rates, check_extreme_funding
 
 # 1. SETUP LOGGING (So you can see errors in the console)
 logging.basicConfig(
@@ -65,7 +65,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "👋 I am the Volatility Bot.\n"
         "Send me a ticker (e.g., PEPE) to analyze.\n\n"
         "Commands:\n"
-        "/funding — top negative funding rates\n"
+        "/negative — top negative funding rates\n"
+        "/positive — top positive funding rates\n"
         "/frequency <min> — set background scan interval\n"
         "/help — list all commands"
     )
@@ -75,13 +76,28 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_scanning_job(context, chat_id)
 
 
-async def funding(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def negative(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Sends the top 10 negative funding rates."""
-    status_msg = await update.message.reply_text("🔍 Fetching funding rates...")
+    status_msg = await update.message.reply_text("🔍 Fetching negative funding rates...")
 
     # Run in executor to avoid blocking the event loop
     loop = asyncio.get_event_loop()
     report = await loop.run_in_executor(None, get_top_funding_rates)
+
+    await status_msg.edit_text(
+        report,
+        parse_mode="Markdown",
+        link_preview_options=LinkPreviewOptions(is_disabled=True),
+    )
+
+
+async def positive(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Sends the top 10 positive funding rates."""
+    status_msg = await update.message.reply_text("🔍 Fetching positive funding rates...")
+
+    # Run in executor to avoid blocking the event loop
+    loop = asyncio.get_event_loop()
+    report = await loop.run_in_executor(None, get_top_positive_funding_rates)
 
     await status_msg.edit_text(
         report,
@@ -214,7 +230,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_text = (
         "🤖 *Volatility Bot — Available Commands*\n\n"
         "/start — Initialize the bot and start background funding scan\n"
-        "/funding — Fetch the top 10 most negative funding rates right now\n"
+        "/negative — Fetch the top 10 most negative funding rates right now\n"
+        "/positive — Fetch the top 10 most positive funding rates right now\n"
         "/rate — Show current funding alert threshold\n"
         "/rate <negative %> — Change alert threshold (e.g. `/rate -1,2`)\n"
         "/frequency <min> — Change how often the background scan runs "
@@ -337,7 +354,8 @@ if __name__ == "__main__":
 
     # Add handlers
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("funding", funding))
+    application.add_handler(CommandHandler("negative", negative))
+    application.add_handler(CommandHandler("positive", positive))
     application.add_handler(CommandHandler("rate", rate))
     application.add_handler(CommandHandler("frequency", frequency))
     application.add_handler(CommandHandler("help", help_command))

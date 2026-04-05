@@ -13,7 +13,8 @@ A Telegram bot that analyzes crypto market volatility using Bybit market data.
   - ATR (14/28) and ATR relative to current price
   - Pump percentiles (75/80/85/90/95/99)
 - Supports funding-rate features:
-  - `/funding` command for most negative funding rates
+  - `/negative` command for most negative funding rates (with OKX comparison)
+  - `/positive` command for most positive funding rates (with OKX comparison)
   - Background scan for extreme negative funding rates with configurable frequency
 
 ## Bot commands
@@ -21,7 +22,8 @@ A Telegram bot that analyzes crypto market volatility using Bybit market data.
 | Command | Description |
 |---------|-------------|
 | `/start` | Initialize the bot and begin the background funding scan for your chat. |
-| `/funding` | Fetch the top 10 most negative funding rates on Bybit right now. |
+| `/negative` | Fetch the top 10 most negative funding rates on Bybit right now (with OKX comparison). |
+| `/positive` | Fetch the top 10 most positive funding rates on Bybit right now (with OKX comparison). |
 | `/rate` | Show the current funding alert threshold used by the background scan for your chat. |
 | `/rate -1,2` | Change the funding alert threshold to `-1.2%` while the bot is running. |
 | `/frequency <minutes>` | Set how often the background scan runs. E.g. `/frequency 30` = every 30 min, `/frequency 1` = every minute. |
@@ -77,7 +79,8 @@ python volatility_bot.py
 Once running, in Telegram:
 
 - `/start` — initialize the bot and begin background funding scan.
-- `/funding` — view the top negative funding rates on demand.
+- `/negative` — view the top negative funding rates on demand.
+- `/positive` — view the top positive funding rates on demand.
 - `/rate` — view the current funding alert threshold.
 - `/rate -1,2` — change the funding alert threshold to `-1.2%`.
 - `/frequency 30` — change the background scan to run every 30 minutes.

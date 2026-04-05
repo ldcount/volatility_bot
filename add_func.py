@@ -80,15 +80,18 @@ def get_top_funding_rates(limit=10):
     if not tickers:
         return "⚠️ Error: Could not fetch funding data."
 
-    # Filter for negative funding rates
+    # Filter for negative funding rates (USDT perps only)
     valid_tickers = []
     for t in tickers:
+        symbol = t.get("symbol", "")
+        if not symbol.endswith("USDT"):
+            continue
         fr_str = t.get("fundingRate", "")
         if fr_str:
             try:
                 fr = float(fr_str)
                 if fr < 0:
-                    valid_tickers.append((t["symbol"], fr))
+                    valid_tickers.append((symbol, fr))
             except ValueError:
                 continue
 
@@ -120,15 +123,18 @@ def get_top_positive_funding_rates(limit=10):
     if not tickers:
         return "⚠️ Error: Could not fetch funding data."
 
-    # Filter for positive funding rates
+    # Filter for positive funding rates (USDT perps only)
     valid_tickers = []
     for t in tickers:
+        symbol = t.get("symbol", "")
+        if not symbol.endswith("USDT"):
+            continue
         fr_str = t.get("fundingRate", "")
         if fr_str:
             try:
                 fr = float(fr_str)
                 if fr > 0:
-                    valid_tickers.append((t["symbol"], fr))
+                    valid_tickers.append((symbol, fr))
             except ValueError:
                 continue
 
@@ -163,12 +169,15 @@ def check_extreme_funding(threshold=-0.015):
 
     extreme_tickers = []
     for t in tickers:
+        symbol = t.get("symbol", "")
+        if not symbol.endswith("USDT"):
+            continue
         fr_str = t.get("fundingRate", "")
         if fr_str:
             try:
                 fr = float(fr_str)
                 if fr <= threshold:
-                    extreme_tickers.append((t["symbol"], fr))
+                    extreme_tickers.append((symbol, fr))
             except ValueError:
                 continue
 

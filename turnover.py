@@ -35,14 +35,17 @@ def get_lowest_turnover(category="linear", total=30):
         print(f"[Turnover] Error fetching data: {e}")
         return "⚠️ Error: Could not fetch ticker data.", None
 
-    # Parse turnover and collect valid entries
+    # Parse turnover and collect valid entries (USDT perps only)
     parsed = []
     for t in tickers:
+        symbol = t.get("symbol", "")
+        if not symbol.endswith("USDT"):
+            continue
         turnover_str = t.get("turnover24h", "")
         if turnover_str:
             try:
                 turnover = float(turnover_str)
-                parsed.append((t["symbol"], turnover))
+                parsed.append((symbol, turnover))
             except ValueError:
                 continue
 

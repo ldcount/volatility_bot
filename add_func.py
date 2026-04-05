@@ -188,3 +188,47 @@ def check_extreme_funding(threshold=-0.015):
         )
 
     return report
+
+
+def format_turnover(value: float) -> str:
+    """
+    Formats a turnover value with K / M / B suffix.
+    - Billions  -> e.g. '1.23 B USDT'
+    - Millions  -> e.g. '45.67 M USDT'
+    - Thousands and below stay as-is -> e.g. '8,500 USDT'
+    """
+    if value >= 1_000_000_000:
+        return f"{value / 1_000_000_000:.2f} B USDT"
+    elif value >= 1_000_000:
+        return f"{value / 1_000_000:.2f} M USDT"
+    else:
+        return f"{value:,.0f} USDT"
+
+
+def get_24h_turnover(symbol: str, category: str = "linear") -> str:
+    """
+    Fetches the 24-hour turnover for a specific symbol from the Bybit tickers API.
+    Returns a formatted string like '45.67 M USDT' or a fallback message on error.
+    """
+    try:
+        params = {"category": category, "symbol": symbol}
+        response = requests.get(BYBIT_TICKERS_URL, params=params, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+
+        if data["retCode"] != 0:
+            return "N/A"
+
+        tickers = data.get("result", {}).get("list", [])
+        if not tickers:
+            return "N/A"
+
+        turnover_str = tickers[0].get("turnover24h", "")
+        if not turnover_str:
+            return "N/A"
+
+        return format_turnover(float(turnover_str))
+
+    except Exception as e:
+        print(f"[Turnover] Error fetching turnover for {symbol}: {e}")
+        return "N/A"

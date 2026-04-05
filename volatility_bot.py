@@ -16,7 +16,7 @@ from telegram.ext import (
 
 # IMPORT YOUR EXISTING MODULES
 from data_processing import validate_ticker, fetch_market_data, analyze_market_data
-from add_func import get_top_funding_rates, get_top_positive_funding_rates, check_extreme_funding
+from add_func import get_top_funding_rates, get_top_positive_funding_rates, check_extreme_funding, get_24h_turnover
 
 # 1. SETUP LOGGING (So you can see errors in the console)
 logging.basicConfig(
@@ -293,6 +293,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # D. Brain Logic
     stats = analyze_market_data(candles)
 
+    # Fetch 24h turnover (non-blocking)
+    turnover = await loop.run_in_executor(None, get_24h_turnover, target_symbol, category)
+
     if stats:
         # We use .6f for ATR to handle meme coins with many decimals (e.g., 0.000001)
         report = (
@@ -322,7 +325,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"3rd DCA (85%): {stats['p85_pump']*100:.2f}%\n"
             f"4th DCA (90%): {stats['p90_pump']*100:.2f}%\n"
             f"5th DCA (95%): {stats['p95_pump']*100:.2f}%\n"
-            f"6th DCA (99%): {stats['p99_pump']*100:.2f}%\n"
+            f"6th DCA (99%): {stats['p99_pump']*100:.2f}%\n\n"
+            f"🔄 **24H TURNOVER**\n"
+            f"{turnover}\n"
         )
     else:
         report = "⚠️ Error: Could not calculate stats. Not enough data?"

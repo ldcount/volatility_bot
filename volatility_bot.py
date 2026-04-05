@@ -135,6 +135,8 @@ def start_scanning_job(context, chat_id, interval_seconds: int | None = None):
     one is created with the new interval.  Otherwise the job is only started
     when it is not already running.
     """
+    restart = interval_seconds is not None  # caller explicitly wants a new interval
+
     if interval_seconds is None:
         # Use a previously saved interval, or fall back to the .env default.
         interval_seconds = context.bot_data.get(
@@ -145,13 +147,12 @@ def start_scanning_job(context, chat_id, interval_seconds: int | None = None):
     try:
         if context.job_queue:
             current_jobs = context.job_queue.get_jobs_by_name(str(chat_id))
-            if current_jobs:
-                if interval_seconds is None:
-                    # Already running, nothing to do.
-                    return
-                # Cancel existing jobs before re-scheduling.
-                for job in current_jobs:
-                    job.schedule_removal()
+            if current_jobs and not restart:
+                # Already running, nothing to do.
+                return
+            # Cancel existing jobs before re-scheduling.
+            for job in current_jobs:
+                job.schedule_removal()
 
             context.job_queue.run_repeating(
                 scan_funding_job,

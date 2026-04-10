@@ -17,7 +17,7 @@ from telegram.ext import (
 # IMPORT YOUR EXISTING MODULES
 from data_processing import validate_ticker, fetch_market_data, analyze_market_data
 from add_func import get_top_funding_rates, get_top_positive_funding_rates, check_extreme_funding, get_24h_turnover
-from turnover import get_lowest_turnover
+from turnover import get_turnover
 
 # 1. SETUP LOGGING (So you can see errors in the console)
 logging.basicConfig(
@@ -68,7 +68,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Commands:\n"
         "/negative — top negative funding rates\n"
         "/positive — top positive funding rates\n"
-        "/turnover — 30 lowest 24H turnover symbols\n"
+        "/turnover [min|max] [offset] — 30 symbols 24H turnover\n"
         "/frequency <min> — set background scan interval\n"
         "/help — list all commands"
     )
@@ -109,11 +109,23 @@ async def positive(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def turnover(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Sends the 30 symbols with the lowest 24H turnover in two messages."""
-    status_msg = await update.message.reply_text("🔍 Fetching turnover data...")
+    """Sends the 30 symbols with the specified 24H turnover in two messages."""
+    
+    order = "min"
+    offset = 0
+
+    if context.args:
+        if context.args[0].lower() in ["min", "max"]:
+            order = context.args[0].lower()
+            if len(context.args) >= 2 and context.args[1].isdigit():
+                offset = int(context.args[1])
+        elif context.args[0].isdigit():
+            offset = int(context.args[0])
+
+    status_msg = await update.message.reply_text(f"🔍 Fetching {order} turnover data (offset: {offset})...")
 
     loop = asyncio.get_event_loop()
-    report_1, report_2 = await loop.run_in_executor(None, get_lowest_turnover)
+    report_1, report_2 = await loop.run_in_executor(None, get_turnover, order, offset)
 
     # First message (1-15)
     await status_msg.edit_text(
@@ -258,7 +270,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/start — Initialize the bot and start background funding scan\n"
         "/negative — Fetch the top 10 most negative funding rates right now\n"
         "/positive — Fetch the top 10 most positive funding rates right now\n"
-        "/turnover — Show the 30 symbols with the lowest 24H turnover\n"
+        "/turnover [min|max] [offset] — Show 30 symbols with lowest/highest 24H turnover with optional offset\n"
         "/rate — Show current funding alert threshold\n"
         "/rate <negative %> — Change alert threshold (e.g. `/rate -1,2`)\n"
         "/frequency <min> — Change how often the background scan runs "

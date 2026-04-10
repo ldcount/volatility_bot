@@ -13,13 +13,13 @@ def _format_turnover_value(value: float) -> str:
         return f"{value:,.0f}"
 
 
-def get_lowest_turnover(category="linear", total=30):
+def get_turnover(order="min", offset=0, total=30, category="linear"):
     """
-    Returns two formatted report strings with the lowest-turnover symbols
+    Returns two formatted report strings with the turnover symbols
     on Bybit linear perpetuals.
 
     Returns:
-        tuple[str, str]: (report_1_to_15, report_16_to_30)
+        tuple[str, str]: (report_1, report_2)
     """
     try:
         params = {"category": category, "limit": 1000}
@@ -52,27 +52,36 @@ def get_lowest_turnover(category="linear", total=30):
     if not parsed:
         return "ℹ️ No turnover data available.", None
 
-    # Sort ascending (smallest first)
-    parsed.sort(key=lambda x: x[1])
-    top = parsed[:total]
+    # Sort based on order
+    if order == "max":
+        parsed.sort(key=lambda x: x[1], reverse=True)
+    else:
+        parsed.sort(key=lambda x: x[1])
+
+    top = parsed[offset:offset+total]
+
+    if not top:
+        return f"ℹ️ No symbols left after applying offset of {offset}.", None
 
     # Split into two halves
-    half = total // 2  # 15
+    half = 15
     first_half = top[:half]
     second_half = top[half:]
 
-    # Build first message (1-15)
-    report_1 = "📉 *Lowest 24H turnover (1-15)*\n\n"
-    for i, (symbol, turnover) in enumerate(first_half, 1):
+    order_str = "Highest" if order == "max" else "Lowest"
+
+    # Build first message
+    report_1 = f"📉 *{order_str} 24H turnover ({offset+1}-{offset+len(first_half)})*\n\n"
+    for i, (symbol, turnover) in enumerate(first_half, offset + 1):
         report_1 += (
             f"{i}. [{symbol}](https://www.bybit.com/trade/usdt/{symbol}): "
             f"{_format_turnover_value(turnover)} USDT\n"
         )
 
-    # Build second message (16-30)
+    # Build second message
     if second_half:
-        report_2 = "📉 *Lowest 24H turnover (16-30)*\n\n"
-        for i, (symbol, turnover) in enumerate(second_half, half + 1):
+        report_2 = f"📉 *{order_str} 24H turnover ({offset+half+1}-{offset+len(top)})*\n\n"
+        for i, (symbol, turnover) in enumerate(second_half, offset + half + 1):
             report_2 += (
                 f"{i}. [{symbol}](https://www.bybit.com/trade/usdt/{symbol}): "
                 f"{_format_turnover_value(turnover)} USDT\n"

@@ -12,8 +12,9 @@ WorkingDirectory=/opt/bots/volatility_bot
 # Live logs
 Environment="PYTHONUNBUFFERED=1"
 Environment="PYTHONIOENCODING=UTF-8"
+Environment="BOT_ENV=prod"
 
-ExecStart=/opt/bots/volatility_bot/venv/bin/python /opt/bots/volatility_bot/volatility_bot.py
+ExecStart=/opt/bots/volatility_bot/venv/bin/python /opt/bots/volatility_bot/main.py
 
 Restart=always
 RestartSec=5

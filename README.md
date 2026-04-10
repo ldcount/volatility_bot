@@ -1,121 +1,114 @@
 # Volatility Bot
 
-A Telegram bot that analyzes crypto market volatility using Bybit market data.
+Telegram bot for three market checks on Bybit:
 
-## What it does
+- volatility assessment for a user-supplied ticker
+- funding assessment through commands and background alerts
+- turnover assessment through ranking commands
 
-- Validates symbols on Bybit across `linear`, `inverse`, and `spot` markets.
-- Downloads up to 1000 historical daily candles.
-- Calculates volatility and risk metrics, including:
-  - Daily and weekly volatility (log-return based)
-  - Max daily surge/crash
-  - Intraday pump/dump extremes
-  - ATR (14/28) and ATR relative to current price
-  - Pump percentiles (75/80/85/90/95/99)
-- Supports funding-rate features:
-  - `/negative` command for most negative funding rates (with OKX comparison)
-  - `/positive` command for most positive funding rates (with OKX comparison)
-  - `/turnover` command for the 30 lowest 24H turnover symbols
-  - Background scan for extreme negative funding rates with configurable frequency
+## Entry Point
 
-## Bot commands
+The runtime entrypoint is `main.py`.
+
+## Bot Commands
 
 | Command | Description |
 |---------|-------------|
-| `/start` | Initialize the bot and begin the background funding scan for your chat. |
-| `/negative` | Fetch the top 10 most negative funding rates on Bybit right now (with OKX comparison). |
-| `/positive` | Fetch the top 10 most positive funding rates on Bybit right now (with OKX comparison). |
-| `/turnover` | Show the 30 symbols with the lowest 24H turnover (split into two messages). |
-| `/rate` | Show the current funding alert threshold used by the background scan for your chat. |
-| `/rate -1,2` | Change the funding alert threshold to `-1.2%` while the bot is running. |
-| `/frequency <minutes>` | Set how often the background scan runs. E.g. `/frequency 30` = every 30 min, `/frequency 1` = every minute. |
-| `/help` | Show the full list of commands with explanations. |
-| `<TICKER>` | Send any coin name (e.g. `BTC`, `PEPE`) for a full volatility report. |
+| `/start` | Initialize the bot and start the background funding scan for the current chat. |
+| `/negative` | Show the top 10 negative funding rates on Bybit with OKX comparison. |
+| `/positive` | Show the top 10 positive funding rates on Bybit with OKX comparison. |
+| `/turnover [min|max] [offset]` | Show 30 symbols ranked by 24H turnover. |
+| `/rate` | Show the current per-chat funding alert threshold. |
+| `/rate -1,2` | Set the per-chat funding alert threshold to `-1.2%`. |
+| `/frequency <minutes>` | Set the funding background scan interval. |
+| `/help` | Show help. |
+| `<TICKER>` | Run the volatility report for a symbol such as `BTC` or `PEPE`. |
 
-## Repository structure
+## Structure
 
-- `volatility_bot.py` — Telegram bot entrypoint and command/message handlers.
-- `data_processing.py` — Core market validation, data fetching, and analysis logic.
-- `add_func.py` — Funding-rate data collection and alert helpers.
-- `turnover.py` — Lowest-turnover symbol lookup.
-- `requirements.txt` — Python dependencies.
-- `TickerGrubProServer.service` — Example systemd unit file.
-- `stats_dictionary_example.md` — Example shape of computed stats.
+The codebase is organized by responsibility:
+
+- `main.py` - application entrypoint
+- `bot/app.py` - Telegram app construction and handler registration
+- `bot/handlers/` - command handlers and ticker-message handler
+- `bot/services/` - volatility, funding, turnover, and job orchestration
+- `bot/clients/` - Bybit and OKX API access
+- `bot/models.py` - shared dataclasses for candles and computed results
+- `bot/reports.py` - Telegram-facing message formatting
+- `tests/` - unit tests for refactor-sensitive logic
 
 ## Requirements
 
-- Python 3.10+ recommended
-- A Telegram bot token
-- Internet connectivity to reach:
-  - Telegram Bot API
-  - Bybit API (`api.bybit.com`)
+- Python 3.10+
+- Telegram bot token
+- Network access to Telegram, Bybit, and OKX
 
 ## Installation
 
 ```bash
 git clone <your-fork-or-repo-url>
-cd Volatility-Bot
-python -m venv .venv
-source .venv/bin/activate
+cd volatility_bot
+python -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
 ```
 
 ## Configuration
 
-Create a `.env` file in the project root (see `.env.example` if present) with the following keys:
+Create `.env` in the project root:
 
 ```env
+BOT_ENV=dev
 TELEGRAM_TOKEN_PROD=<your-telegram-bot-token>
-FUNDING_THRESHOLD=-0.015     # Alert when funding rate is at or below this value
-SCAN_INTERVAL=1200           # Default background scan interval in seconds (20 min)
+TELEGRAM_TOKEN_DEV=<your-dev-telegram-bot-token>
+FUNDING_THRESHOLD=-0.015
+SCAN_INTERVAL=1200
 ```
 
-The scan interval can also be changed at runtime via the `/frequency` command without restarting the bot.
-The funding alert threshold can also be changed at runtime via `/rate` for the current chat while the bot process is running.
+`BOT_ENV=dev` uses `TELEGRAM_TOKEN_DEV`.
+`BOT_ENV=prod` uses `TELEGRAM_TOKEN_PROD`.
 
-## Run locally
+## Run Locally
 
 ```bash
-python volatility_bot.py
+python main.py
 ```
 
-Once running, in Telegram:
-
-- `/start` — initialize the bot and begin background funding scan.
-- `/negative` — view the top negative funding rates on demand.
-- `/positive` — view the top positive funding rates on demand.
-- `/turnover` — view the 30 symbols with the lowest 24H turnover.
-- `/rate` — view the current funding alert threshold.
-- `/rate -1,2` — change the funding alert threshold to `-1.2%`.
-- `/frequency 30` — change the background scan to run every 30 minutes.
-- `/help` — view all available commands.
-- Send a ticker like `BTC` or `PEPE` to get a volatility analysis report.
-
-## Background funding scan behavior
-
-- A repeating job is created per chat after `/start` (or on first interaction).
-- Default interval is controlled by `SCAN_INTERVAL` in `.env` (default: 1200 s / 20 min).
-- The interval can be changed live at any time with `/frequency <minutes>`.
-- The funding alert threshold defaults to `FUNDING_THRESHOLD` in `.env`, but can be changed live per chat with `/rate`.
-- The job sends alerts when funding rates are at or below the configured threshold.
-
-## Deployment (systemd)
-
-A sample service file is included: `TickerGrubProServer.service`.
-
-Typical setup flow:
-
-1. Copy service file to `/etc/systemd/system/`.
-2. Adjust `User`, `WorkingDirectory`, and `ExecStart` for your environment.
-3. Reload and enable:
+## Tests
 
 ```bash
+python -m unittest discover -s tests -v
+```
+
+## systemd
+
+The sample unit file is `volatility_bot.service`.
+
+The important line is now:
+
+```ini
+ExecStart=/opt/bots/volatility_bot/venv/bin/python /opt/bots/volatility_bot/main.py
+```
+
+Typical install or refresh flow on the VPS:
+
+```bash
+sudo cp /opt/bots/volatility_bot/volatility_bot.service /etc/systemd/system/volatility_bot.service
 sudo systemctl daemon-reload
-sudo systemctl enable --now TickerGrubProServer.service
-sudo systemctl status TickerGrubProServer.service
+sudo systemctl restart volatility_bot.service
+sudo systemctl status volatility_bot.service
 ```
 
-## Notes
+## GitHub Actions Deployment
 
-- The bot depends on live external APIs; failures can occur due to network issues or API limits.
-- If Bybit changes response shapes, helper logic in `data_processing.py` and `add_func.py` may need updates.
+The workflow in `.github/workflows/deploy.yml` now:
+
+- installs dependencies
+- runs the unit tests before deploy
+- pulls latest code on the VPS
+- reinstalls requirements in the VPS virtualenv
+- copies the updated `volatility_bot.service` into `/etc/systemd/system/`
+- reloads systemd
+- restarts the bot service
+
+This keeps the VPS unit file aligned with the repository version instead of relying on manual sync.

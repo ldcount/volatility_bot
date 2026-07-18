@@ -45,6 +45,20 @@ class FundingEntry:
 
 
 @dataclass(frozen=True)
+class FundingSnapshot:
+    rate: float
+    details: str | None = None
+
+
+@dataclass(frozen=True)
+class FundingDiffEntry:
+    symbol: str
+    funding_diff: float
+    bybit: FundingSnapshot
+    okx: FundingSnapshot
+
+
+@dataclass(frozen=True)
 class TurnoverEntry:
     symbol: str
     turnover_24h: float

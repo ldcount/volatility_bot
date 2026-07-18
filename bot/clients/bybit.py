@@ -60,14 +60,14 @@ def instrument_exists(symbol: str) -> tuple[bool, str | None]:
     return False, None
 
 
-def fetch_candles(symbol: str, category: str, interval: str = "D") -> list[Candle] | None:
-    session = HTTP(testnet=False)
+def fetch_candles(symbol: str, category: str, interval: str = "D", limit: int = 1000) -> list[Candle] | None:
+    session = HTTP(testnet=False, recv_window=10000)
     try:
         response = session.get_kline(
             category=category,
             symbol=symbol,
             interval=interval,
-            limit=1000,
+            limit=limit,
         )
     except Exception as exc:
         print(f"[Bybit] Error fetching candles for {symbol}: {exc}")

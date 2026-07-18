@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 import statistics
 
-from bot.clients.bybit import fetch_candles, instrument_exists
+from bot.clients.bybit import fetch_all_tickers, fetch_candles, instrument_exists
 from bot.models import Candle, VolatilityStats
 
 
@@ -18,13 +18,12 @@ def validate_ticker(symbol: str) -> tuple[bool, str | None]:
     return instrument_exists(symbol)
 
 
-def fetch_market_data(symbol: str, category: str, interval: str = "D") -> list[Candle] | None:
-    return fetch_candles(symbol, category, interval)
+def fetch_market_data(symbol: str, category: str, interval: str = "D", limit: int = 1000) -> list[Candle] | None:
+    return fetch_candles(symbol, category, interval, limit)
 
 
 def analyze_market_data(candles: list[Candle]) -> VolatilityStats | None:
     if not candles or len(candles) < 30:
-        print("[Volatility] Not enough data to compute statistics.")
         return None
 
     pump_data: list[tuple[float, str]] = []
@@ -118,3 +117,49 @@ def analyze_market_data(candles: list[Candle]) -> VolatilityStats | None:
         p95_pump=get_percentile(0.95),
         p99_pump=get_percentile(0.99),
     )
+
+
+def scan_market_volatility(top_n: int = 50) -> list[tuple[str, float]]:
+    tickers = fetch_all_tickers("linear")
+
+    valid_tickers: list[tuple[str, float]] = []
+    for ticker in tickers:
+        symbol = ticker.get("symbol", "")
+        if not symbol.endswith("USDT"):
+            continue
+
+        turnover_value = ticker.get("turnover24h")
+        if not turnover_value:
+            continue
+
+        try:
+            turnover = float(turnover_value)
+            valid_tickers.append((symbol, turnover))
+        except ValueError:
+            continue
+
+    valid_tickers.sort(key=lambda item: item[1], reverse=True)
+    top_tickers = valid_tickers[:top_n]
+
+    results: list[tuple[str, float]] = []
+    skipped_coins: list[str] = []
+    
+    for symbol, _ in top_tickers:
+        candles = fetch_candles(symbol, "linear", "D", limit=50)
+        if not candles:
+            skipped_coins.append(symbol)
+            continue
+
+        stats = analyze_market_data(candles)
+        if not stats:
+            skipped_coins.append(symbol)
+            continue
+
+        if stats.atr_relative > 0:
+            results.append((symbol, stats.atr_relative))
+
+    if skipped_coins:
+        print(f"[Volatility] Not enough data to compute statistics. Coins skipped: {', '.join(skipped_coins)}")
+
+    results.sort(key=lambda item: item[1], reverse=True)
+    return results[:15]

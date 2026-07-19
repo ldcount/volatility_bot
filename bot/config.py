@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 
 DEFAULT_FUNDING_THRESHOLD = -0.015
-DEFAULT_SCAN_INTERVAL = 3600
+DEFAULT_SCAN_INTERVAL = 18000
 
 
 def load_environment() -> None:

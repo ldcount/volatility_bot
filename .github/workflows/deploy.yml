@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - develop
 
 jobs:
   deploy:
@@ -35,8 +36,10 @@ jobs:
           script: |
             cd /opt/bots/volatility_bot
             
-            # 1. Pull the latest code
-            git pull origin master
+            # 1. Fetch and pull the branch that triggered this run
+            git fetch origin
+            git checkout ${{ github.ref_name }}
+            git pull origin ${{ github.ref_name }}
             
             # 2. Update dependencies
             ./venv/bin/pip install -r requirements.txt

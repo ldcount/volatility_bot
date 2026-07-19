@@ -3,3 +3,4 @@ requests
 pybit
 APScheduler
 python-dotenv
+matplotlib

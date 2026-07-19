@@ -11,6 +11,8 @@ def build_bot_commands() -> list[BotCommand]:
         BotCommand("positive", "Top positive funding rates"),
         BotCommand("funding_diff", "Top funding gaps: Bybit vs OKX"),
         BotCommand("turnover", "24H turnover ranking"),
+        BotCommand("turnover_hours", "Chart hourly turnover history for a symbol"),
+        BotCommand("turnover_days", "Chart daily turnover history for a symbol"),
         BotCommand("scan", "Market-wide volatility scan"),
         BotCommand("surge", "Max N-day historical surge"),
         BotCommand("rate", "Show or change the funding alert threshold"),

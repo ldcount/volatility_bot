@@ -11,6 +11,8 @@ from bot.reports import (
     format_funding_diff_report,
     format_threshold_percent,
 )
+from bot.clients.bybit import fetch_all_tickers
+from bot.services.db import cleanup_old_records, save_hourly_snapshots
 from bot.services.funding import find_extreme_funding
 from bot.services.funding_diff import get_top_funding_diff
 
@@ -114,3 +116,38 @@ def start_scanning_job(
 
 def get_threshold_message(threshold: float) -> str:
     return f"Current funding alert threshold: {format_threshold_percent(threshold)}"
+
+
+async def record_hourly_turnover_job(context: ContextTypes.DEFAULT_TYPE) -> None:
+    loop = asyncio.get_running_loop()
+    try:
+        tickers = await loop.run_in_executor(None, fetch_all_tickers)
+        if tickers:
+            await loop.run_in_executor(None, save_hourly_snapshots, tickers)
+            await loop.run_in_executor(None, cleanup_old_records, 30)
+            print("[Jobs] Hourly turnover snapshot successfully recorded and old database records cleaned up.")
+        else:
+            print("[Jobs] Warning: fetch_all_tickers returned empty, skipping hourly database recording.")
+    except Exception as exc:
+        print(f"[Jobs] Error in record_hourly_turnover_job: {exc}")
+
+
+def start_global_jobs(application) -> None:
+    """
+    Starts system-wide background jobs (like recording hourly turnover).
+    These are global and not tied to any specific Telegram chat ID.
+    """
+    if not application.job_queue:
+        print("[Jobs] Warning: JobQueue not available. Global jobs disabled.")
+        return
+
+    # Check if job already exists to avoid duplication
+    jobs = application.job_queue.get_jobs_by_name("record_hourly_turnover")
+    if not jobs:
+        application.job_queue.run_repeating(
+            record_hourly_turnover_job,
+            interval=3600,
+            first=10,  # Run first time after 10 seconds, then every 1 hour
+            name="record_hourly_turnover",
+        )
+        print("[Jobs] Registered global hourly turnover recording job.")

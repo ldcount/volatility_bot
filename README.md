@@ -17,7 +17,7 @@ The runtime entrypoint is `main.py`.
 | `/start` | Initialize the bot and start the background funding scan for the current chat. |
 | `/negative` | Show the top 10 negative funding rates on Bybit with OKX comparison. |
 | `/positive` | Show the top 10 positive funding rates on Bybit with OKX comparison. |
-| `/turnover [min|max] [offset]` | Show 30 symbols ranked by 24H turnover. |
+| `/turnover [offset]` | Show 30 symbols with highest 24H turnover. |
 | `/rate` | Show the current per-chat funding alert threshold. |
 | `/rate -1,2` | Set the per-chat funding alert threshold to `-1.2%`. |
 | `/frequency <minutes>` | Set the funding background scan interval. |

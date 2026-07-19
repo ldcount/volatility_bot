@@ -14,6 +14,8 @@ from bot.handlers.commands import (
     start,
     surge,
     turnover,
+    turnover_days,
+    turnover_hours,
 )
 from bot.handlers.messages import handle_message
 from bot.ui import configure_bot_ui
@@ -40,13 +42,29 @@ async def log_error(update, context) -> None:
     )
 
 
+async def on_startup(application) -> None:
+    from bot.services.db import init_db
+    from bot.services.jobs import start_global_jobs
+
+    # 1. Initialize SQLite Database
+    init_db()
+
+    # 2. Configure Telegram UI commands
+    await configure_bot_ui(application)
+
+    # 3. Start system-wide background jobs (e.g. hourly turnover logger)
+    start_global_jobs(application)
+
+
 def build_application(token: str):
-    application = ApplicationBuilder().token(token).post_init(configure_bot_ui).build()
+    application = ApplicationBuilder().token(token).post_init(on_startup).build()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("negative", negative))
     application.add_handler(CommandHandler("positive", positive))
     application.add_handler(CommandHandler("funding_diff", funding_diff))
     application.add_handler(CommandHandler("turnover", turnover))
+    application.add_handler(CommandHandler("turnover_hours", turnover_hours))
+    application.add_handler(CommandHandler("turnover_days", turnover_days))
     application.add_handler(CommandHandler("scan", scan))
     application.add_handler(CommandHandler("surge", surge))
     application.add_handler(CommandHandler("rate", rate))

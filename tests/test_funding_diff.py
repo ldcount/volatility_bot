@@ -63,10 +63,10 @@ class FundingDiffReportTests(unittest.TestCase):
             ]
         )
 
-        self.assertIn("*Funding arbitrage: Bybit - OKX (descending by diff)*", report)
-        self.assertIn("*1. BTCUSDT*", report)
+        self.assertIn("💱*Funding arbitrage: Bybit - OKX*", report)
+        self.assertIn("*BTCUSDT*", report)
         self.assertIn(
-            "Diff: `0.0250%` | Bybit: `0.1000% 8h` | OKX: `-0.0750% 4h`",
+            "Diff: `0.03%` | `0.10%` | `-0.07%`",
             report,
         )
 

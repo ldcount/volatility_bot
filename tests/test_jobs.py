@@ -95,7 +95,7 @@ class BackgroundFundingJobTests(unittest.IsolatedAsyncioTestCase):
     ) -> None:
         mock_find_extreme_funding.return_value = []
         mock_get_top_funding_diff.return_value = [
-            SimpleNamespace(funding_diff=0.003),
+            SimpleNamespace(funding_diff=0.0029),
             SimpleNamespace(funding_diff=0.0025),
         ]
         mock_format_extreme_funding_alert.return_value = None

@@ -266,7 +266,7 @@ async def turnover_hours(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return
 
     # Parse arguments
-    hours = 24
+    hours = None
     symbol_arg = ""
     if len(context.args) == 1:
         arg = context.args[0]
@@ -292,9 +292,13 @@ async def turnover_hours(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return
 
     target_symbol = normalize_symbol(symbol_arg)
-    status_message = await update.effective_message.reply_text(
-        f"Fetching {hours} hours of turnover history for {target_symbol}..."
-    )
+    if hours is None:
+        hours = 1000  # Default to fetching all history up to 30 days
+        status_msg_text = f"Fetching all available turnover history for {target_symbol}..."
+    else:
+        status_msg_text = f"Fetching {hours} hours of turnover history for {target_symbol}..."
+
+    status_message = await update.effective_message.reply_text(status_msg_text)
 
     loop = asyncio.get_running_loop()
     exists, category = await loop.run_in_executor(None, validate_ticker, target_symbol)
@@ -321,17 +325,21 @@ async def turnover_hours(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         None, generate_turnover_chart, target_symbol, data, "hours"
     )
 
-    display_data = data[-10:]
-    lines = []
-    for entry in display_data:
-        dt = datetime.fromtimestamp(entry["timestamp"]).strftime("%m/%d %H:%M")
-        formatted = format_turnover_value(entry["turnover"])
-        lines.append(f"`{dt}: {formatted}`")
+    # Compute statistics
+    turnovers = [entry["turnover"] for entry in data]
+    avg_turnover = sum(turnovers) / len(turnovers)
+    max_turnover = max(turnovers)
+    min_turnover = min(turnovers)
+    latest_turnover = turnovers[-1]
+    latest_dt = datetime.fromtimestamp(data[-1]["timestamp"]).strftime("%m/%d %H:%M")
 
     caption_text = (
         f"📊 *{target_symbol} Turnover Evolution (Hours)*\n"
-        f"Showing last {len(display_data)}/{len(data)} recorded hours:\n\n"
-        + "\n".join(lines)
+        f"Period: last {len(data)} recorded hours\n\n"
+        f"• *Latest*: `{format_turnover_value(latest_turnover)}` ({latest_dt})\n"
+        f"• *Average*: `{format_turnover_value(avg_turnover)}`\n"
+        f"• *Maximum*: `{format_turnover_value(max_turnover)}`\n"
+        f"• *Minimum*: `{format_turnover_value(min_turnover)}`"
     )
 
     await update.effective_message.reply_photo(
@@ -350,7 +358,7 @@ async def turnover_days(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         return
 
     # Parse arguments
-    days = 7
+    days = None
     symbol_arg = ""
     if len(context.args) == 1:
         arg = context.args[0]
@@ -376,9 +384,13 @@ async def turnover_days(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         return
 
     target_symbol = normalize_symbol(symbol_arg)
-    status_message = await update.effective_message.reply_text(
-        f"Fetching {days} days of turnover history for {target_symbol}..."
-    )
+    if days is None:
+        days = 30  # Default to fetching all history up to 30 days
+        status_msg_text = f"Fetching all available daily turnover history for {target_symbol}..."
+    else:
+        status_msg_text = f"Fetching {days} days of turnover history for {target_symbol}..."
+
+    status_message = await update.effective_message.reply_text(status_msg_text)
 
     loop = asyncio.get_running_loop()
     exists, category = await loop.run_in_executor(None, validate_ticker, target_symbol)
@@ -405,17 +417,21 @@ async def turnover_days(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         None, generate_turnover_chart, target_symbol, data, "days"
     )
 
-    display_data = data[-10:]
-    lines = []
-    for entry in display_data:
-        dt = datetime.fromtimestamp(entry["timestamp"]).strftime("%Y-%m-%d")
-        formatted = format_turnover_value(entry["turnover"])
-        lines.append(f"`{dt}: {formatted}`")
+    # Compute statistics
+    turnovers = [entry["turnover"] for entry in data]
+    avg_turnover = sum(turnovers) / len(turnovers)
+    max_turnover = max(turnovers)
+    min_turnover = min(turnovers)
+    latest_turnover = turnovers[-1]
+    latest_dt = datetime.fromtimestamp(data[-1]["timestamp"]).strftime("%Y-%m-%d")
 
     caption_text = (
         f"📊 *{target_symbol} Turnover Evolution (Days)*\n"
-        f"Showing last {len(display_data)}/{len(data)} recorded days:\n\n"
-        + "\n".join(lines)
+        f"Period: last {len(data)} recorded days\n\n"
+        f"• *Latest*: `{format_turnover_value(latest_turnover)}` ({latest_dt})\n"
+        f"• *Average*: `{format_turnover_value(avg_turnover)}`\n"
+        f"• *Maximum*: `{format_turnover_value(max_turnover)}`\n"
+        f"• *Minimum*: `{format_turnover_value(min_turnover)}`"
     )
 
     await update.effective_message.reply_photo(
@@ -424,3 +440,4 @@ async def turnover_days(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         parse_mode="Markdown",
     )
     await status_message.delete()
+

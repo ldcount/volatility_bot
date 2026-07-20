@@ -61,6 +61,53 @@ def generate_turnover_chart(symbol: str, data: list[dict], mode: str) -> bytes:
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
         ax.xaxis.set_major_locator(mdates.DayLocator(interval=max(1, len(data) // 6)))
 
+    # Adjust Y-axis limit to add headroom at the top for labels, ensuring no negative values
+    if turnovers:
+        ymin, ymax = min(turnovers), max(turnovers)
+        yrange = ymax - ymin
+        if yrange == 0:
+            yrange = ymax * 0.1 if ymax > 0 else 1.0
+        ax.set_ylim(max(0.0, ymin - yrange * 0.15), ymax + yrange * 0.25)
+
+    # Annotate points with exact values.
+    # To prevent visual clutter, label all points if <= 24, otherwise label only first, last, min, and max.
+    if len(data) <= 24:
+        for date, val in zip(dates, turnovers):
+            label = format_money_compact(val)
+            ax.annotate(
+                label,
+                xy=(date, val),
+                xytext=(0, 6),
+                textcoords="offset points",
+                ha="center",
+                va="bottom",
+                fontsize=8,
+                color="#00f2fe",
+                fontweight="bold",
+            )
+    else:
+        min_val = min(turnovers)
+        max_val = max(turnovers)
+        min_idx = turnovers.index(min_val)
+        max_idx = turnovers.index(max_val)
+        special_indices = {0, len(data) - 1, min_idx, max_idx}
+        
+        for idx in special_indices:
+            date = dates[idx]
+            val = turnovers[idx]
+            label = format_money_compact(val)
+            ax.annotate(
+                label,
+                xy=(date, val),
+                xytext=(0, 6),
+                textcoords="offset points",
+                ha="center",
+                va="bottom",
+                fontsize=8,
+                color="#00f2fe",
+                fontweight="bold",
+            )
+
     fig.autofmt_xdate()
 
     # Title & Legend

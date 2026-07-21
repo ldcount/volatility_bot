@@ -35,6 +35,11 @@ class VolatilityStats:
     p90_pump: float
     p95_pump: float
     p99_pump: float
+    avg_price_10: float | None
+    avg_price_30: float | None
+    avg_price_60: float | None
+    avg_price_90: float | None
+
 
 
 @dataclass(frozen=True)

@@ -94,6 +94,27 @@ def analyze_market_data(candles: list[Candle]) -> VolatilityStats | None:
             return 0.0
         return sorted_pumps[int(len(sorted_pumps) * percent)]
 
+    avg_price_10 = (
+        statistics.mean(c.open for c in candles[-10:])
+        if len(candles) >= 10
+        else None
+    )
+    avg_price_30 = (
+        statistics.mean(c.open for c in candles[-30:])
+        if len(candles) >= 30
+        else None
+    )
+    avg_price_60 = (
+        statistics.mean(c.open for c in candles[-60:])
+        if len(candles) >= 60
+        else None
+    )
+    avg_price_90 = (
+        statistics.mean(c.open for c in candles[-90:])
+        if len(candles) >= 90
+        else None
+    )
+
     return VolatilityStats(
         vol_day=vol_day,
         vol_week=vol_week,
@@ -116,7 +137,12 @@ def analyze_market_data(candles: list[Candle]) -> VolatilityStats | None:
         p90_pump=get_percentile(0.90),
         p95_pump=get_percentile(0.95),
         p99_pump=get_percentile(0.99),
+        avg_price_10=avg_price_10,
+        avg_price_30=avg_price_30,
+        avg_price_60=avg_price_60,
+        avg_price_90=avg_price_90,
     )
+
 
 
 def scan_market_volatility(top_n: int = 50) -> list[tuple[str, float]]:

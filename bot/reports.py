@@ -103,6 +103,19 @@ def format_turnover_reports(
     return report_1, "\n".join(lines_2)
 
 
+def format_avg_price(val: float | None) -> str:
+    if val is None:
+        return "N/A"
+    if val >= 100.0:
+        return f"{val:.2f}"
+    elif val >= 1.0:
+        return f"{val:.4f}"
+    elif val >= 0.0001:
+        return f"{val:.6f}"
+    else:
+        return f"{val:.8f}"
+
+
 def format_volatility_report(
     symbol: str,
     candles_count: int,
@@ -138,8 +151,14 @@ def format_volatility_report(
         f"5th DCA (95%): {stats.p95_pump * 100:.2f}%\n"
         f"6th DCA (99%): {stats.p99_pump * 100:.2f}%\n\n"
         "🔄 *24H TURNOVER*\n"
-        f"{turnover_text}"
+        f"{turnover_text}\n\n"
+        "✖️ *AVG DAILY PRICE LAST*\n"
+        f"10 days: `{format_avg_price(stats.avg_price_10)}`\n"
+        f"30 days: `{format_avg_price(stats.avg_price_30)}`\n"
+        f"60 days: `{format_avg_price(stats.avg_price_60)}`\n"
+        f"90 days: `{format_avg_price(stats.avg_price_90)}`"
     )
+
 
 
 def format_scan_report(results: list[tuple[str, float]]) -> str:

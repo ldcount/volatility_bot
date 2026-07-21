@@ -42,6 +42,15 @@ class VolatilityServiceTests(unittest.TestCase):
         self.assertAlmostEqual(stats.max_pump_val, 0.08)
         self.assertLess(stats.max_dump_val, 0)
         self.assertGreaterEqual(stats.p99_pump, stats.p75_pump)
+        self.assertIsNotNone(stats.avg_price_10)
+        self.assertIsNotNone(stats.avg_price_30)
+        self.assertIsNone(stats.avg_price_60)
+        self.assertIsNone(stats.avg_price_90)
+
+        # Expected average of open values from range 21 to 30 (100 + day)
+        expected_avg_10 = sum(100.0 + d for d in range(21, 31)) / 10.0
+        self.assertAlmostEqual(stats.avg_price_10, expected_avg_10)
+
 
 
 class FundingServiceTests(unittest.TestCase):

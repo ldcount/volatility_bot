@@ -14,8 +14,6 @@ from bot.handlers.commands import (
     start,
     surge,
     turnover,
-    turnover_days,
-    turnover_hours,
 )
 from bot.handlers.messages import handle_message
 from bot.ui import configure_bot_ui
@@ -63,8 +61,6 @@ def build_application(token: str):
     application.add_handler(CommandHandler("positive", positive))
     application.add_handler(CommandHandler("funding_diff", funding_diff))
     application.add_handler(CommandHandler("turnover", turnover))
-    application.add_handler(CommandHandler("turnover_hours", turnover_hours))
-    application.add_handler(CommandHandler("turnover_days", turnover_days))
     application.add_handler(CommandHandler("scan", scan))
     application.add_handler(CommandHandler("surge", surge))
     application.add_handler(CommandHandler("rate", rate))

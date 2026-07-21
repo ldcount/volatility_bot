@@ -5,17 +5,13 @@ import asyncio
 from telegram import LinkPreviewOptions, Update
 from telegram.ext import ContextTypes
 
-from datetime import datetime
 from bot.reports import (
     format_funding_diff_report,
     format_funding_report,
     format_scan_report,
     format_surge_report,
     format_turnover_reports,
-    format_turnover_value,
 )
-from bot.services.db import get_daily_history, get_hourly_history
-from bot.services.charts import generate_turnover_chart
 from bot.services.funding_diff import get_top_funding_diff
 from bot.services.funding import get_top_negative_funding, get_top_positive_funding
 from bot.services.jobs import (
@@ -44,8 +40,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "/positive - top positive funding rates\n"
         "/funding_diff - top 30 funding gaps between Bybit and OKX\n"
         "/turnover [offset] - 30 symbols by highest 24H turnover\n"
-        "/turnover_hours [hours] <symbol> - chart hourly turnover history\n"
-        "/turnover_days [days] <symbol> - chart daily turnover history\n"
         "/scan - market-wide volatility screener\n"
         "/surge <symbol> <days> - calculate max N-day surge\n"
         "/frequency <min> - set background funding scan interval\n"
@@ -239,8 +233,6 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "/positive - fetch the top 10 most positive funding rates\n"
         "/funding\_diff - top 30 abs funding gaps between Bybit and OKX\n"
         "/turnover [offset] - show 30 symbols with highest 24H turnover\n"
-        "/turnover\_hours [hours] <symbol> - chart hourly turnover history\n"
-        "/turnover\_days [days] <symbol> - chart daily turnover history\n"
         "/scan - market-wide volatility screener\n"
         "/surge <symbol> <days> - find max historical surge over N days\n"
         "/rate - show current funding alert threshold\n"
@@ -256,188 +248,4 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         parse_mode="Markdown",
         reply_markup=build_main_menu(),
     )
-
-
-async def turnover_hours(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not context.args:
-        await update.effective_message.reply_text(
-            "Usage: /turnover_hours [hours] <symbol>\nExample: /turnover_hours 14 BTC"
-        )
-        return
-
-    # Parse arguments
-    hours = None
-    symbol_arg = ""
-    if len(context.args) == 1:
-        arg = context.args[0]
-        if arg.isdigit():
-            hours = int(arg)
-        else:
-            symbol_arg = arg
-    else:
-        arg1, arg2 = context.args[0], context.args[1]
-        if arg1.isdigit():
-            hours = int(arg1)
-            symbol_arg = arg2
-        elif arg2.isdigit():
-            hours = int(arg2)
-            symbol_arg = arg1
-        else:
-            symbol_arg = arg1
-
-    if not symbol_arg:
-        await update.effective_message.reply_text(
-            "Please specify a symbol.\nUsage: /turnover_hours [hours] <symbol>"
-        )
-        return
-
-    target_symbol = normalize_symbol(symbol_arg)
-    if hours is None:
-        hours = 1000  # Default to fetching all history up to 30 days
-        status_msg_text = f"Fetching all available turnover history for {target_symbol}..."
-    else:
-        status_msg_text = f"Fetching {hours} hours of turnover history for {target_symbol}..."
-
-    status_message = await update.effective_message.reply_text(status_msg_text)
-
-    loop = asyncio.get_running_loop()
-    exists, category = await loop.run_in_executor(None, validate_ticker, target_symbol)
-    if not exists or not category:
-        await status_message.edit_text(f"Symbol {target_symbol} not found on Bybit.")
-        return
-
-    data = await loop.run_in_executor(None, get_hourly_history, target_symbol, hours)
-    if not data:
-        await status_message.edit_text(f"No database history recorded yet for {target_symbol}.")
-        return
-
-    if len(data) < 2:
-        val = data[0]["turnover"]
-        formatted_val = format_turnover_value(val)
-        dt = datetime.fromtimestamp(data[0]["timestamp"]).strftime("%m/%d %H:%M")
-        await status_message.edit_text(
-            f"Only 1 history record exists for {target_symbol} (need at least 2 to chart):\n"
-            f"• {dt}: {formatted_val}"
-        )
-        return
-
-    chart_bytes = await loop.run_in_executor(
-        None, generate_turnover_chart, target_symbol, data, "hours"
-    )
-
-    # Compute statistics
-    turnovers = [entry["turnover"] for entry in data]
-    avg_turnover = sum(turnovers) / len(turnovers)
-    max_turnover = max(turnovers)
-    min_turnover = min(turnovers)
-    latest_turnover = turnovers[-1]
-    latest_dt = datetime.fromtimestamp(data[-1]["timestamp"]).strftime("%m/%d %H:%M")
-
-    caption_text = (
-        f"📊 *{target_symbol} Turnover Evolution (Hours)*\n"
-        f"Period: last {len(data)} recorded hours\n\n"
-        f"• *Latest*: `{format_turnover_value(latest_turnover)}` ({latest_dt})\n"
-        f"• *Average*: `{format_turnover_value(avg_turnover)}`\n"
-        f"• *Maximum*: `{format_turnover_value(max_turnover)}`\n"
-        f"• *Minimum*: `{format_turnover_value(min_turnover)}`"
-    )
-
-    await update.effective_message.reply_photo(
-        photo=chart_bytes,
-        caption=caption_text,
-        parse_mode="Markdown",
-    )
-    await status_message.delete()
-
-
-async def turnover_days(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not context.args:
-        await update.effective_message.reply_text(
-            "Usage: /turnover_days [days] <symbol>\nExample: /turnover_days 7 BTC"
-        )
-        return
-
-    # Parse arguments
-    days = None
-    symbol_arg = ""
-    if len(context.args) == 1:
-        arg = context.args[0]
-        if arg.isdigit():
-            days = int(arg)
-        else:
-            symbol_arg = arg
-    else:
-        arg1, arg2 = context.args[0], context.args[1]
-        if arg1.isdigit():
-            days = int(arg1)
-            symbol_arg = arg2
-        elif arg2.isdigit():
-            days = int(arg2)
-            symbol_arg = arg1
-        else:
-            symbol_arg = arg1
-
-    if not symbol_arg:
-        await update.effective_message.reply_text(
-            "Please specify a symbol.\nUsage: /turnover_days [days] <symbol>"
-        )
-        return
-
-    target_symbol = normalize_symbol(symbol_arg)
-    if days is None:
-        days = 30  # Default to fetching all history up to 30 days
-        status_msg_text = f"Fetching all available daily turnover history for {target_symbol}..."
-    else:
-        status_msg_text = f"Fetching {days} days of turnover history for {target_symbol}..."
-
-    status_message = await update.effective_message.reply_text(status_msg_text)
-
-    loop = asyncio.get_running_loop()
-    exists, category = await loop.run_in_executor(None, validate_ticker, target_symbol)
-    if not exists or not category:
-        await status_message.edit_text(f"Symbol {target_symbol} not found on Bybit.")
-        return
-
-    data = await loop.run_in_executor(None, get_daily_history, target_symbol, days)
-    if not data:
-        await status_message.edit_text(f"No database history recorded yet for {target_symbol}.")
-        return
-
-    if len(data) < 2:
-        val = data[0]["turnover"]
-        formatted_val = format_turnover_value(val)
-        dt = datetime.fromtimestamp(data[0]["timestamp"]).strftime("%Y-%m-%d")
-        await status_message.edit_text(
-            f"Only 1 history record exists for {target_symbol} (need at least 2 to chart):\n"
-            f"• {dt}: {formatted_val}"
-        )
-        return
-
-    chart_bytes = await loop.run_in_executor(
-        None, generate_turnover_chart, target_symbol, data, "days"
-    )
-
-    # Compute statistics
-    turnovers = [entry["turnover"] for entry in data]
-    avg_turnover = sum(turnovers) / len(turnovers)
-    max_turnover = max(turnovers)
-    min_turnover = min(turnovers)
-    latest_turnover = turnovers[-1]
-    latest_dt = datetime.fromtimestamp(data[-1]["timestamp"]).strftime("%Y-%m-%d")
-
-    caption_text = (
-        f"📊 *{target_symbol} Turnover Evolution (Days)*\n"
-        f"Period: last {len(data)} recorded days\n\n"
-        f"• *Latest*: `{format_turnover_value(latest_turnover)}` ({latest_dt})\n"
-        f"• *Average*: `{format_turnover_value(avg_turnover)}`\n"
-        f"• *Maximum*: `{format_turnover_value(max_turnover)}`\n"
-        f"• *Minimum*: `{format_turnover_value(min_turnover)}`"
-    )
-
-    await update.effective_message.reply_photo(
-        photo=chart_bytes,
-        caption=caption_text,
-        parse_mode="Markdown",
-    )
-    await status_message.delete()
 

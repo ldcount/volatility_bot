@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime
 
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from bot.reports import format_volatility_report
+from bot.reports import format_turnover_value, format_volatility_report
+from bot.services.charts import generate_turnover_chart
+from bot.services.db import get_hourly_history
 from bot.services.jobs import start_scanning_job
 from bot.services.turnover import get_symbol_turnover_text
 from bot.services.volatility import (
@@ -14,7 +17,6 @@ from bot.services.volatility import (
     normalize_symbol,
     validate_ticker,
 )
-
 
 REQUEST_COUNT = 0
 
@@ -67,7 +69,42 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         stats,
         turnover_text,
     )
-    await update.message.reply_text(report, parse_mode="Markdown")
+    # Update status message with volatility report
+    await status_message.edit_text(report, parse_mode="Markdown")
+
+    # Retrieve up to last 24 hours of database history
+    data = await loop.run_in_executor(None, get_hourly_history, target_symbol, 24)
+    if data and len(data) >= 2:
+        try:
+            chart_bytes = await loop.run_in_executor(
+                None, generate_turnover_chart, target_symbol, data, "hours"
+            )
+
+            turnovers = [entry["turnover"] for entry in data]
+            avg_turnover = sum(turnovers) / len(turnovers)
+            max_turnover = max(turnovers)
+            min_turnover = min(turnovers)
+            latest_turnover = turnovers[-1]
+            latest_dt = datetime.fromtimestamp(data[-1]["timestamp"]).strftime("%m/%d %H:%M")
+
+            caption_text = (
+                f"📊 *{target_symbol} Turnover Evolution (Hours)*\n"
+                f"Period: last {len(data)} recorded hours\n\n"
+                f"• *Latest*: `{format_turnover_value(latest_turnover)}` ({latest_dt})\n"
+                f"• *Average*: `{format_turnover_value(avg_turnover)}`\n"
+                f"• *Maximum*: `{format_turnover_value(max_turnover)}`\n"
+                f"• *Minimum*: `{format_turnover_value(min_turnover)}`"
+            )
+
+            await update.message.reply_photo(
+                photo=chart_bytes,
+                caption=caption_text,
+                parse_mode="Markdown",
+            )
+        except Exception as exc:
+            print(f"[Messages] Error generating/sending turnover chart for {target_symbol}: {exc}")
+
     print(
         f"[Messages] Request #{REQUEST_COUNT}: sent report with {len(candles)} candles."
     )
+

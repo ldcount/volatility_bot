@@ -5,7 +5,10 @@ import time
 import unittest
 from datetime import datetime, timedelta, timezone
 
-from bot.services.charts import generate_turnover_chart
+from bot.services.charts import (
+    generate_turnover_chart,
+    get_turnover_annotation_indices,
+)
 from bot.services.db import (
     cleanup_old_records,
     get_connection,
@@ -143,6 +146,21 @@ class TurnoverDatabaseTests(unittest.TestCase):
 
 
 class TurnoverChartingTests(unittest.TestCase):
+    def test_annotations_include_only_first_min_max_and_last(self) -> None:
+        turnovers = [5.0, 1.0, 10.0, 4.0, 6.0]
+
+        self.assertEqual(
+            get_turnover_annotation_indices(turnovers),
+            [0, 1, 2, 4],
+        )
+
+    def test_annotation_roles_are_deduplicated(self) -> None:
+        # The first point is also the minimum and the last is also the maximum.
+        self.assertEqual(
+            get_turnover_annotation_indices([1.0, 2.0, 3.0]),
+            [0, 2],
+        )
+
     def test_generate_turnover_chart_produces_png_bytes(self) -> None:
         dummy_data = [
             {"timestamp": int(time.time() - 3600 * 3), "turnover": 100000.0, "volume": 1.0},

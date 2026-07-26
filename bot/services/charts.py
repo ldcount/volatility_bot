@@ -20,6 +20,20 @@ def format_money_compact(x: float, pos: int | None = None) -> str:
     return f"${x:.2f}"
 
 
+def get_turnover_annotation_indices(turnovers: list[float]) -> list[int]:
+    """Return unique indices for the first, minimum, maximum, and last points."""
+    if not turnovers:
+        return []
+    return sorted(
+        {
+            0,
+            turnovers.index(min(turnovers)),
+            turnovers.index(max(turnovers)),
+            len(turnovers) - 1,
+        }
+    )
+
+
 def generate_turnover_chart(symbol: str, data: list[dict], mode: str) -> bytes:
     """
     Generates a dark-themed PNG chart of the turnover history.
@@ -78,44 +92,23 @@ def generate_turnover_chart(symbol: str, data: list[dict], mode: str) -> bytes:
             yrange = ymax * 0.1 if ymax > 0 else 1.0
         ax.set_ylim(max(0.0, ymin - yrange * 0.15), ymax + yrange * 0.25)
 
-    # Annotate points with exact values.
-    # To prevent visual clutter, label all points if <= 24, otherwise label only first, last, min, and max.
-    if len(data) <= 24:
-        for date, val in zip(dates, turnovers):
-            label = format_money_compact(val)
-            ax.annotate(
-                label,
-                xy=(date, val),
-                xytext=(0, 6),
-                textcoords="offset points",
-                ha="center",
-                va="bottom",
-                fontsize=8,
-                color="#00f2fe",
-                fontweight="bold",
-            )
-    else:
-        min_val = min(turnovers)
-        max_val = max(turnovers)
-        min_idx = turnovers.index(min_val)
-        max_idx = turnovers.index(max_val)
-        special_indices = {0, len(data) - 1, min_idx, max_idx}
-        
-        for idx in special_indices:
-            date = dates[idx]
-            val = turnovers[idx]
-            label = format_money_compact(val)
-            ax.annotate(
-                label,
-                xy=(date, val),
-                xytext=(0, 6),
-                textcoords="offset points",
-                ha="center",
-                va="bottom",
-                fontsize=8,
-                color="#00f2fe",
-                fontweight="bold",
-            )
+    # Keep the chart readable by labelling only the first, minimum, maximum,
+    # and last values. A point serving multiple roles is labelled once.
+    for idx in get_turnover_annotation_indices(turnovers):
+        date = dates[idx]
+        val = turnovers[idx]
+        label = format_money_compact(val)
+        ax.annotate(
+            label,
+            xy=(date, val),
+            xytext=(0, 6),
+            textcoords="offset points",
+            ha="center",
+            va="bottom",
+            fontsize=8,
+            color="#00f2fe",
+            fontweight="bold",
+        )
 
     fig.autofmt_xdate()
 

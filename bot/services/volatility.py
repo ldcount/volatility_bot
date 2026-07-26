@@ -7,6 +7,9 @@ from bot.clients.bybit import fetch_all_tickers, fetch_candles, instrument_exist
 from bot.models import Candle, VolatilityStats
 
 
+LIQUIDITY_REFERENCE_TURNOVER_USDT = 10_000_000.0
+
+
 def normalize_symbol(user_text: str) -> str:
     symbol = user_text.strip().upper()
     if not symbol.endswith("USDT"):
@@ -115,6 +118,61 @@ def analyze_market_data(candles: list[Candle]) -> VolatilityStats | None:
         else None
     )
 
+    negative_returns = [min(value, 0.0) for value in log_returns]
+    downside_deviation = (
+        math.sqrt(statistics.mean(value * value for value in negative_returns))
+        if negative_returns
+        else 0.0
+    )
+
+    peak_close = 0.0
+    max_drawdown = 0.0
+    for candle in candles:
+        if candle.close <= 0:
+            continue
+        peak_close = max(peak_close, candle.close)
+        if peak_close > 0:
+            max_drawdown = min(max_drawdown, candle.close / peak_close - 1)
+
+    recent_30 = candles[-30:]
+    sma_30 = statistics.mean(c.close for c in recent_30) if recent_30 else None
+    total_volume_30 = sum(c.volume for c in recent_30 if c.volume > 0)
+    total_turnover_30 = sum(c.turnover for c in recent_30 if c.turnover > 0)
+    vwap_30 = (
+        total_turnover_30 / total_volume_30
+        if total_volume_30 > 0 and total_turnover_30 > 0
+        else None
+    )
+    avg_turnover_30 = (
+        statistics.mean(c.turnover for c in recent_30)
+        if recent_30
+        else None
+    )
+    distance_to_sma_30 = (
+        current_close / sma_30 - 1
+        if sma_30 is not None and sma_30 > 0 and current_close > 0
+        else None
+    )
+    distance_to_vwap_30 = (
+        current_close / vwap_30 - 1
+        if vwap_30 is not None and vwap_30 > 0 and current_close > 0
+        else None
+    )
+    liquidity_penalty = 1.0
+    if avg_turnover_30 is not None and avg_turnover_30 > 0:
+        liquidity_penalty = max(
+            1.0,
+            math.sqrt(LIQUIDITY_REFERENCE_TURNOVER_USDT / avg_turnover_30),
+        )
+    liquidity_adjusted_atr = atr_relative * liquidity_penalty
+
+    if len(candles) >= 365:
+        data_confidence = "High"
+    elif len(candles) >= 90:
+        data_confidence = "Moderate"
+    else:
+        data_confidence = "Limited"
+
     return VolatilityStats(
         vol_day=vol_day,
         vol_week=vol_week,
@@ -141,6 +199,18 @@ def analyze_market_data(candles: list[Candle]) -> VolatilityStats | None:
         avg_price_30=avg_price_30,
         avg_price_60=avg_price_60,
         avg_price_90=avg_price_90,
+        downside_deviation=downside_deviation,
+        max_drawdown=max_drawdown,
+        current_close=current_close,
+        sma_30=sma_30,
+        vwap_30=vwap_30,
+        distance_to_sma_30=distance_to_sma_30,
+        distance_to_vwap_30=distance_to_vwap_30,
+        avg_turnover_30=avg_turnover_30,
+        liquidity_adjusted_atr=liquidity_adjusted_atr,
+        sample_start=candles[0].date,
+        sample_end=candles[-1].date,
+        data_confidence=data_confidence,
     )
 
 

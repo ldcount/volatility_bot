@@ -37,7 +37,9 @@ class BackgroundFundingJobTests(unittest.IsolatedAsyncioTestCase):
         mock_format_funding_diff_report,
     ) -> None:
         mock_find_extreme_funding.return_value = ["extreme-entry"]
-        mock_get_top_funding_diff.return_value = [SimpleNamespace(funding_diff=0.0031)]
+        mock_get_top_funding_diff.return_value = [
+            SimpleNamespace(safety_adjusted_edge=0.0031)
+        ]
         mock_format_extreme_funding_alert.return_value = "extreme-report"
         mock_format_funding_diff_report.return_value = "diff-report"
 
@@ -68,7 +70,9 @@ class BackgroundFundingJobTests(unittest.IsolatedAsyncioTestCase):
         mock_format_funding_diff_report,
     ) -> None:
         mock_find_extreme_funding.return_value = []
-        mock_get_top_funding_diff.return_value = [SimpleNamespace(funding_diff=0.004)]
+        mock_get_top_funding_diff.return_value = [
+            SimpleNamespace(safety_adjusted_edge=0.004)
+        ]
         mock_format_extreme_funding_alert.return_value = None
         mock_format_funding_diff_report.return_value = "diff-report"
 
@@ -99,8 +103,8 @@ class BackgroundFundingJobTests(unittest.IsolatedAsyncioTestCase):
     ) -> None:
         mock_find_extreme_funding.return_value = []
         mock_get_top_funding_diff.return_value = [
-            SimpleNamespace(funding_diff=0.0029),
-            SimpleNamespace(funding_diff=0.0025),
+            SimpleNamespace(safety_adjusted_edge=0.0029),
+            SimpleNamespace(safety_adjusted_edge=0.0025),
         ]
         mock_format_extreme_funding_alert.return_value = None
 

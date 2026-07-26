@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import io
-from datetime import datetime
+from datetime import UTC, datetime
 
 import matplotlib
 matplotlib.use("Agg")  # Thread-safe non-interactive backend
@@ -27,7 +27,7 @@ def generate_turnover_chart(symbol: str, data: list[dict], mode: str) -> bytes:
     """
     timestamps = [d["timestamp"] for d in data]
     turnovers = [d["turnover"] for d in data]
-    dates = [datetime.fromtimestamp(ts) for ts in timestamps]
+    dates = [datetime.fromtimestamp(ts, tz=UTC) for ts in timestamps]
 
     # Use a dark background style
     plt.style.use("dark_background")
@@ -35,7 +35,16 @@ def generate_turnover_chart(symbol: str, data: list[dict], mode: str) -> bytes:
 
     # Clean styling
     color = "#00f2fe"  # Neon cyan color for line
-    ax.plot(dates, turnovers, color=color, linewidth=2.5, marker="o", markersize=4, label="24H Turnover")
+    series_label = "Hourly Turnover" if mode == "hours" else "Daily Turnover"
+    ax.plot(
+        dates,
+        turnovers,
+        color=color,
+        linewidth=2.5,
+        marker="o",
+        markersize=4,
+        label=series_label,
+    )
     ax.fill_between(dates, turnovers, color=color, alpha=0.15)
 
     # Gridlines and spines styling
@@ -52,13 +61,13 @@ def generate_turnover_chart(symbol: str, data: list[dict], mode: str) -> bytes:
     # Format X-axis depending on mode (hourly vs daily)
     if mode == "hours":
         if len(data) <= 24:
-            ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+            ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M", tz=UTC))
             ax.xaxis.set_major_locator(mdates.HourLocator(interval=max(1, len(data) // 6)))
         else:
-            ax.xaxis.set_major_formatter(mdates.DateFormatter("%m/%d %H:%M"))
+            ax.xaxis.set_major_formatter(mdates.DateFormatter("%m/%d %H:%M", tz=UTC))
             ax.xaxis.set_major_locator(mdates.HourLocator(interval=max(4, len(data) // 6)))
     else:
-        ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d", tz=UTC))
         ax.xaxis.set_major_locator(mdates.DayLocator(interval=max(1, len(data) // 6)))
 
     # Adjust Y-axis limit to add headroom at the top for labels, ensuring no negative values
@@ -113,7 +122,7 @@ def generate_turnover_chart(symbol: str, data: list[dict], mode: str) -> bytes:
     # Title & Legend
     title_suffix = f"({len(data)} Hours)" if mode == "hours" else f"({len(data)} Days)"
     ax.set_title(
-        f"{symbol} 24H Rolling Turnover Evolution {title_suffix}",
+        f"{symbol} {series_label} {title_suffix}",
         fontsize=13,
         pad=15,
         fontweight="bold",

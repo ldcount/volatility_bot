@@ -46,6 +46,15 @@ class VolatilityServiceTests(unittest.TestCase):
         self.assertIsNotNone(stats.avg_price_30)
         self.assertIsNone(stats.avg_price_60)
         self.assertIsNone(stats.avg_price_90)
+        self.assertGreater(stats.downside_deviation, 0)
+        self.assertLessEqual(stats.max_drawdown, 0)
+        self.assertIsNotNone(stats.sma_30)
+        self.assertIsNotNone(stats.vwap_30)
+        self.assertIsNotNone(stats.avg_turnover_30)
+        self.assertGreaterEqual(stats.liquidity_adjusted_atr, stats.atr_relative)
+        self.assertEqual(stats.sample_start, "2026-01-01")
+        self.assertEqual(stats.sample_end, "2026-01-30")
+        self.assertEqual(stats.data_confidence, "Limited")
 
         # Expected average of open values from range 21 to 30 (100 + day)
         expected_avg_10 = sum(100.0 + d for d in range(21, 31)) / 10.0

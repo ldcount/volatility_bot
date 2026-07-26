@@ -9,7 +9,7 @@ def build_bot_commands() -> list[BotCommand]:
         BotCommand("start", "Start the bot and show the menu"),
         BotCommand("negative", "Top negative funding rates"),
         BotCommand("positive", "Top positive funding rates"),
-        BotCommand("funding_diff", "Top funding gaps: Bybit vs OKX"),
+        BotCommand("funding_diff", "Funding arbitrage decision screen"),
         BotCommand("turnover", "24H turnover ranking"),
         BotCommand("scan", "Market-wide volatility scan"),
 

@@ -1,4 +1,12 @@
-from bot.models import FundingDiffEntry, FundingEntry, FundingSnapshot, TurnoverEntry, VolatilityStats
+from datetime import datetime
+
+from bot.models import (
+    FundingDiffEntry,
+    FundingEntry,
+    FundingSnapshot,
+    TurnoverEntry,
+    VolatilityStats,
+)
 
 
 def format_okx_bracket(okx_rate: float | None) -> str:
@@ -33,34 +41,129 @@ def format_funding_report(entries: list[FundingEntry], title: str) -> str:
 
 
 def format_funding_snapshot(snapshot: FundingSnapshot) -> str:
-    formatted_rate = f"{snapshot.rate * 100:.2f}%"
-    if not snapshot.details:
-        return formatted_rate
-    #return f"{formatted_rate} {snapshot.details}"
-    return f"{formatted_rate}"
+    interval = snapshot.interval_hours or 8.0
+    normalized_rate = snapshot.rate * 8 / interval
+    return f"{normalized_rate * 100:.3f}%/8h"
+
+
+def _format_funding_time(value: datetime | None) -> str:
+    return value.strftime("%d %b %H:%M UTC") if value is not None else "unknown"
+
+
+def _format_rate(value: float | None) -> str:
+    return "N/A" if value is None else f"{value * 100:.3f}%"
+
+
+def _format_usdt(value: float | None) -> str:
+    return "N/A" if value is None else format_turnover_value(value)
+
+
+def _funding_decision(entry: FundingDiffEntry) -> str:
+    if entry.safety_adjusted_edge is None:
+        return "WATCH - execution costs unavailable"
+    if entry.safety_adjusted_edge <= 0:
+        return "SKIP - costs exceed edge"
+    if entry.persistence_ratio is None or entry.persistence_ratio < 0.5:
+        return "WATCH - weak or missing persistence"
+    return "ACTIONABLE CANDIDATE"
+
+
+def _format_liquidity(entry: FundingDiffEntry) -> str:
+    bybit_depth = (
+        _format_usdt(entry.bybit_liquidity.depth_near_market_usdt)
+        if entry.bybit_liquidity is not None
+        else "N/A"
+    )
+    okx_depth = (
+        _format_usdt(entry.okx_liquidity.depth_near_market_usdt)
+        if entry.okx_liquidity is not None
+        else "N/A"
+    )
+    bybit_oi = (
+        _format_usdt(entry.bybit_liquidity.open_interest_usdt)
+        if entry.bybit_liquidity is not None
+        else "N/A"
+    )
+    okx_oi = (
+        _format_usdt(entry.okx_liquidity.open_interest_usdt)
+        if entry.okx_liquidity is not None
+        else "N/A"
+    )
+    return f"depth B/O {bybit_depth}/{okx_depth}; OI B/O {bybit_oi}/{okx_oi}"
 
 
 def format_funding_diff_report(entries: list[FundingDiffEntry]) -> str:
     if not entries:
         return "No funding arbitrage data found."
 
-    lines = ["💱*Funding arbitrage: Bybit - OKX*", ""]
+    first = entries[0]
+    lines = [
+        "💱 *Funding arbitrage decision screen*",
+        (
+            f"Assumptions: ${first.notional_usdt:,.0f}/leg, taker round trip "
+            f"{first.round_trip_fee_rate * 100:.3f}%, "
+            f"{first.safety_haircut_ratio * 100:.0f}% funding haircut"
+        ),
+        (
+            f"Screen: {first.screened_contracts}/{first.shared_contracts} shared contracts "
+            "prefiltered by Bybit funding magnitude."
+        ),
+        "Rates and edges normalized to 8 hours.",
+        "",
+    ]
+    shown = 0
     for index, entry in enumerate(entries, start=1):
-        lines.append(f"*{entry.symbol}*")
-        lines.append(
-            f"Diff: `{entry.funding_diff * 100:.2f}%` | "
-            f"`{format_funding_snapshot(entry.bybit)}` | "
-            f"`{format_funding_snapshot(entry.okx)}`"
+        gross_usdt = entry.funding_diff * entry.notional_usdt
+        adjusted_usdt = (
+            entry.safety_adjusted_edge * entry.notional_usdt
+            if entry.safety_adjusted_edge is not None
+            else None
         )
-        if entry.bybit.rate > entry.okx.rate:
-            direction = "Short Bybit / Long OKX"
-        elif entry.okx.rate > entry.bybit.rate:
-            direction = "Short OKX / Long Bybit"
-        else:
-            direction = "No funding edge"
-        lines.append(f"Direction: `{direction}`")
-        #lines.append("")
+        persistence = (
+            f"{entry.persistence_ratio * 100:.0f}%/{entry.history_samples}; "
+            f"avg {_format_rate(entry.historical_avg_edge)}"
+            if entry.persistence_ratio is not None
+            else "unavailable"
+        )
+        safe_text = (
+            f"{_format_rate(entry.safety_adjusted_edge)} (${adjusted_usdt:,.2f})"
+            if adjusted_usdt is not None
+            else "N/A"
+        )
+        block = [
+            f"*{index}. {entry.symbol} - {_funding_decision(entry)}*",
+            f"Trade: short {entry.short_exchange} / long {entry.long_exchange}",
+            (
+                f"Rates B/O: `{format_funding_snapshot(entry.bybit)}` / "
+                f"`{format_funding_snapshot(entry.okx)}` | next B/O: "
+                f"{_format_funding_time(entry.bybit.next_funding_at)} "
+                f"({entry.bybit.interval_hours or 8:g}h) / "
+                f"{_format_funding_time(entry.okx.next_funding_at)} "
+                f"({entry.okx.interval_hours or 8:g}h)"
+            ),
+            (
+                f"Gross `{entry.funding_diff * 100:.3f}%` (${gross_usdt:,.2f}) | "
+                f"net `{_format_rate(entry.net_edge)}` | safe `{safe_text}`"
+            ),
+            (
+                f"Costs fee/spread/slip: `{entry.round_trip_fee_rate * 100:.3f}%`/"
+                f"`{_format_rate(entry.spread_cost_rate)}`/"
+                f"`{_format_rate(entry.slippage_cost_rate)}`"
+            ),
+            f"Persistence: {persistence} | {_format_liquidity(entry)}",
+        ]
+        if entry.warnings:
+            block.append(f"Caution: {'; '.join(entry.warnings)}")
+        block.append("")
 
+        candidate = "\n".join(lines + block).rstrip()
+        if len(candidate) > 3900:
+            break
+        lines.extend(block)
+        shown += 1
+
+    if shown < len(entries):
+        lines.append(f"{len(entries) - shown} additional candidates omitted for message length.")
     return "\n".join(lines).rstrip()
 
 
@@ -115,12 +218,11 @@ def format_avg_price(val: float | None) -> str:
         return "N/A"
     if val >= 100.0:
         return f"{val:.2f}"
-    elif val >= 1.0:
+    if val >= 1.0:
         return f"{val:.4f}"
-    elif val >= 0.0001:
+    if val >= 0.0001:
         return f"{val:.6f}"
-    else:
-        return f"{val:.8f}"
+    return f"{val:.8f}"
 
 
 def format_volatility_report(
@@ -157,7 +259,15 @@ def format_volatility_report(
         f"4th DCA (90%): {stats.p90_pump * 100:.2f}%\n"
         f"5th DCA (95%): {stats.p95_pump * 100:.2f}%\n"
         f"6th DCA (99%): {stats.p99_pump * 100:.2f}%\n\n"
-        "🔄 *24H TURNOVER*\n"
+        "*DECISION CONTEXT*\n"
+        f"Coverage: {stats.sample_start} to {stats.sample_end} ({stats.data_confidence})\n"
+        f"Downside deviation: {stats.downside_deviation * 100:.2f}%\n"
+        f"Maximum drawdown: {stats.max_drawdown * 100:.2f}%\n"
+        f"Close vs SMA 30: {_format_rate(stats.distance_to_sma_30)}\n"
+        f"Close vs VWAP 30: {_format_rate(stats.distance_to_vwap_30)}\n"
+        f"Average daily turnover (30D): {_format_usdt(stats.avg_turnover_30)}\n"
+        f"Liquidity-adjusted ATR: {stats.liquidity_adjusted_atr * 100:.2f}%\n\n"
+        "🔄 *ROLLING 24H TURNOVER*\n"
         f"{turnover_text}\n\n"
         "✖️ *AVG DAILY PRICE LAST*\n"
         f"10 days: `{format_avg_price(stats.avg_price_10)}`\n"
@@ -165,7 +275,6 @@ def format_volatility_report(
         f"60 days: `{format_avg_price(stats.avg_price_60)}`\n"
         f"90 days: `{format_avg_price(stats.avg_price_90)}`"
     )
-
 
 
 def format_scan_report(results: list[tuple[str, float]]) -> str:
@@ -182,8 +291,4 @@ def format_scan_report(results: list[tuple[str, float]]) -> str:
 
 
 def format_surge_report(symbol: str, surge_pct: float, date_str: str) -> str:
-    return (
-        f"MAX SURGE {symbol.upper()}\n"
-        f"{surge_pct * 100:.0f}%\n"
-        f"{date_str}"
-    )
+    return f"MAX SURGE {symbol.upper()}\n{surge_pct * 100:.0f}%\n{date_str}"

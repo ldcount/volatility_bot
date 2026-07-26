@@ -39,7 +39,7 @@ The codebase is organized by responsibility:
 
 ## Requirements
 
-- Python 3.10+
+- Python 3.11+
 - Telegram bot token
 - Network access to Telegram, Bybit, and OKX
 
@@ -63,10 +63,33 @@ TELEGRAM_TOKEN_PROD=<your-telegram-bot-token>
 TELEGRAM_TOKEN_DEV=<your-dev-telegram-bot-token>
 FUNDING_THRESHOLD=-0.015
 SCAN_INTERVAL=1200
+FUNDING_NOTIONAL_USDT=1000
+BYBIT_TAKER_FEE_RATE=0.00055
+OKX_TAKER_FEE_RATE=0.0005
+FUNDING_SAFETY_HAIRCUT_RATIO=0.25
+FUNDING_HISTORY_SAMPLES=6
+FUNDING_PREFILTER_LIMIT=80
 ```
 
 `BOT_ENV=dev` uses `TELEGRAM_TOKEN_DEV`.
 `BOT_ENV=prod` uses `TELEGRAM_TOKEN_PROD`.
+
+The funding arbitrage screen normalizes both exchanges to an 8-hour horizon,
+then estimates a net edge for `FUNDING_NOTIONAL_USDT` after round-trip taker
+fees, current order-book spread and slippage. The safety haircut discounts the
+gross funding edge for rate movement before settlement. Fee settings are rates,
+so `0.00055` means `0.055%` per trade.
+
+To keep interactive scans responsive and within exchange rate limits, the bot
+prefilters shared contracts by absolute Bybit funding magnitude before requesting
+individual OKX funding rates. The report discloses the screened and total shared
+contract counts; increase `FUNDING_PREFILTER_LIMIT` for broader, slower coverage.
+
+Volatility reports retain the existing calculations and add decision context:
+downside deviation, historical drawdown, price versus 30-day SMA/VWAP,
+liquidity-adjusted ATR, sample coverage, and confidence. The accompanying chart
+uses completed 1-hour Bybit candles; the separate ticker value remains explicitly
+labelled as rolling 24-hour turnover.
 
 ## Run Locally
 

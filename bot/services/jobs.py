@@ -58,7 +58,11 @@ async def scan_funding_job(context: ContextTypes.DEFAULT_TYPE) -> None:
     )
     extreme_report = format_extreme_funding_alert(extreme_entries)
     funding_diff_report = None
-    if any(entry.funding_diff >= FUNDING_DIFF_REPORT_THRESHOLD for entry in diff_entries):
+    if any(
+        entry.safety_adjusted_edge is not None
+        and entry.safety_adjusted_edge >= FUNDING_DIFF_REPORT_THRESHOLD
+        for entry in diff_entries
+    ):
         funding_diff_report = format_funding_diff_report(diff_entries)
 
     if extreme_report:

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 
 
 @dataclass(frozen=True)
@@ -10,6 +11,7 @@ class Candle:
     close: float
     volume: float
     turnover: float
+    timestamp: int | None = None
 
 
 @dataclass(frozen=True)
@@ -39,6 +41,18 @@ class VolatilityStats:
     avg_price_30: float | None
     avg_price_60: float | None
     avg_price_90: float | None
+    downside_deviation: float
+    max_drawdown: float
+    current_close: float
+    sma_30: float | None
+    vwap_30: float | None
+    distance_to_sma_30: float | None
+    distance_to_vwap_30: float | None
+    avg_turnover_30: float | None
+    liquidity_adjusted_atr: float
+    sample_start: str
+    sample_end: str
+    data_confidence: str
 
 
 
@@ -53,6 +67,45 @@ class FundingEntry:
 class FundingSnapshot:
     rate: float
     details: str | None = None
+    next_funding_at: datetime | None = None
+    interval_hours: float | None = None
+    bid_price: float | None = None
+    ask_price: float | None = None
+    mark_price: float | None = None
+    open_interest_usdt: float | None = None
+
+
+@dataclass(frozen=True)
+class FundingRatePoint:
+    rate: float
+    funded_at: datetime
+
+
+@dataclass(frozen=True)
+class OrderBookSnapshot:
+    bids: tuple[tuple[float, float], ...]
+    asks: tuple[tuple[float, float], ...]
+    timestamp_ms: int | None = None
+    quantity_multiplier: float = 1.0
+
+
+@dataclass(frozen=True)
+class OkxInstrument:
+    inst_id: str
+    contract_value: float
+    contract_multiplier: float
+    contract_value_currency: str
+
+
+@dataclass(frozen=True)
+class LiquidityMetrics:
+    best_bid: float
+    best_ask: float
+    spread_rate: float
+    entry_slippage_rate: float | None
+    depth_near_market_usdt: float
+    fill_ratio: float
+    open_interest_usdt: float | None = None
 
 
 @dataclass(frozen=True)
@@ -61,6 +114,24 @@ class FundingDiffEntry:
     funding_diff: float
     bybit: FundingSnapshot
     okx: FundingSnapshot
+    long_exchange: str = ""
+    short_exchange: str = ""
+    horizon_hours: float = 8.0
+    notional_usdt: float = 0.0
+    round_trip_fee_rate: float = 0.0
+    safety_haircut_ratio: float = 0.0
+    screened_contracts: int = 0
+    shared_contracts: int = 0
+    spread_cost_rate: float | None = None
+    slippage_cost_rate: float | None = None
+    net_edge: float | None = None
+    safety_adjusted_edge: float | None = None
+    persistence_ratio: float | None = None
+    historical_avg_edge: float | None = None
+    history_samples: int = 0
+    bybit_liquidity: LiquidityMetrics | None = None
+    okx_liquidity: LiquidityMetrics | None = None
+    warnings: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

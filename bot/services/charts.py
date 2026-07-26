@@ -35,7 +35,7 @@ def generate_turnover_chart(symbol: str, data: list[dict], mode: str) -> bytes:
 
     # Clean styling
     color = "#00f2fe"  # Neon cyan color for line
-    series_label = "Hourly Turnover" if mode == "hours" else "Daily Turnover"
+    series_label = "Rolling 24H Turnover" if mode == "hours" else "Daily Turnover"
     ax.plot(
         dates,
         turnovers,

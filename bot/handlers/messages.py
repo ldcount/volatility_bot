@@ -8,6 +8,7 @@ from telegram.ext import ContextTypes
 
 from bot.reports import format_turnover_value, format_volatility_report
 from bot.services.charts import generate_turnover_chart
+from bot.services.db import get_hourly_history
 from bot.services.jobs import start_scanning_job
 from bot.services.turnover import get_symbol_turnover_text
 from bot.services.volatility import (
@@ -71,21 +72,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     # Update status message with volatility report
     await status_message.edit_text(report, parse_mode="HTML")
 
-    # Exchange klines provide completed hourly turnover without depending on
-    # how long this bot process has been recording ticker snapshots.
-    hourly_candles = await loop.run_in_executor(
-        None,
-        fetch_market_data,
-        target_symbol,
-        category,
-        "60",
-        25,
-    )
-    data = [
-        {"timestamp": candle.timestamp, "turnover": candle.turnover}
-        for candle in (hourly_candles or [])[-24:]
-        if candle.timestamp is not None
-    ]
+    # Each stored point is Bybit's rolling 24H turnover, sampled once per hour.
+    data = await loop.run_in_executor(None, get_hourly_history, target_symbol, 24)
     if data and len(data) >= 2:
         try:
             chart_bytes = await loop.run_in_executor(
@@ -98,7 +86,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             min_turnover = min(turnovers)
             latest_turnover = turnovers[-1]
             prior_turnover = turnovers[-2]
-            hourly_change = (
+            snapshot_change = (
                 latest_turnover / prior_turnover - 1
                 if prior_turnover > 0
                 else None
@@ -108,14 +96,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 tz=UTC,
             ).strftime("%m/%d %H:%M UTC")
             change_text = (
-                "N/A" if hourly_change is None else f"{hourly_change * 100:+.1f}%"
+                "N/A" if snapshot_change is None else f"{snapshot_change * 100:+.1f}%"
             )
 
             caption_text = (
-                f"📊 <b>{target_symbol} Hourly Turnover</b>\n"
-                f"Period: last {len(data)} completed 1H candles\n\n"
+                f"📊 <b>{target_symbol} Rolling 24H Turnover</b>\n"
+                f"Period: last {len(data)} hourly snapshots\n\n"
                 f"• <b>Latest</b>: <code>{format_turnover_value(latest_turnover)}</code> ({latest_dt})\n"
-                f"• <b>Change vs prior hour</b>: <code>{change_text}</code>\n"
+                f"• <b>Change vs prior snapshot</b>: <code>{change_text}</code>\n"
                 f"• <b>Average</b>: <code>{format_turnover_value(avg_turnover)}</code>\n"
                 f"• <b>Maximum</b>: <code>{format_turnover_value(max_turnover)}</code>\n"
                 f"• <b>Minimum</b>: <code>{format_turnover_value(min_turnover)}</code>"

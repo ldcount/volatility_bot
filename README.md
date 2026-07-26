@@ -101,8 +101,8 @@ contract counts; increase `FUNDING_PREFILTER_LIMIT` for broader, slower coverage
 Volatility reports retain the existing calculations and add decision context:
 downside deviation, historical drawdown, price versus 30-day SMA/VWAP,
 liquidity-adjusted ATR, sample coverage, and confidence. The accompanying chart
-uses completed 1-hour Bybit candles; the separate ticker value remains explicitly
-labelled as rolling 24-hour turnover.
+uses the bot's hourly SQLite snapshots of Bybit's rolling 24-hour turnover, so
+each point is a rolling-window value rather than turnover within one hourly candle.
 
 ## Run Locally
 

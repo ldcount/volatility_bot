@@ -1,4 +1,6 @@
 from datetime import datetime
+from html import escape
+from urllib.parse import quote
 
 from bot.models import (
     FundingDiffEntry,
@@ -7,6 +9,21 @@ from bot.models import (
     TurnoverEntry,
     VolatilityStats,
 )
+
+
+def _bold(value: object) -> str:
+    return f"<b>{escape(str(value))}</b>"
+
+
+def _code(value: object) -> str:
+    return f"<code>{escape(str(value))}</code>"
+
+
+def _symbol_link(symbol: str) -> str:
+    return (
+        f'<a href="https://www.bybit.com/trade/usdt/{quote(symbol, safe="")}">'
+        f"{escape(symbol)}</a>"
+    )
 
 
 def format_okx_bracket(okx_rate: float | None) -> str:
@@ -27,16 +44,22 @@ def format_turnover_value(value: float) -> str:
     return f"{value:,.0f} USDT"
 
 
-def format_funding_report(entries: list[FundingEntry], title: str) -> str:
+def format_funding_report(
+    entries: list[FundingEntry],
+    title: str,
+    offset: int = 0,
+) -> str:
     if not entries:
         return "No matching funding data found."
 
-    lines = [title, ""]
-    for index, entry in enumerate(entries, start=1):
+    lines = [_bold(title), ""]
+    for index, entry in enumerate(entries, start=offset + 1):
         lines.append(
-            f"{index}. [{entry.symbol}](https://www.bybit.com/trade/usdt/{entry.symbol}): "
-            f"{entry.bybit_rate * 100:.4f}% {format_okx_bracket(entry.okx_rate)}"
+            f"{index}. {_symbol_link(entry.symbol)}: "
+            f"{_code(f'{entry.bybit_rate * 100:.4f}%')} "
+            f"{escape(format_okx_bracket(entry.okx_rate))}"
         )
+    lines.extend(("", "Bybit rate; OKX comparison is shown in parentheses."))
     return "\n".join(lines)
 
 
@@ -98,7 +121,7 @@ def format_funding_diff_report(entries: list[FundingDiffEntry]) -> str:
 
     first = entries[0]
     lines = [
-        "💱 *Funding arbitrage decision screen*",
+        f"💱 {_bold('Funding arbitrage decision screen')}",
         (
             f"Assumptions: ${first.notional_usdt:,.0f}/leg, taker round trip "
             f"{first.round_trip_fee_rate * 100:.3f}%, "
@@ -131,29 +154,34 @@ def format_funding_diff_report(entries: list[FundingDiffEntry]) -> str:
             else "N/A"
         )
         block = [
-            f"*{index}. {entry.symbol} - {_funding_decision(entry)}*",
-            f"Trade: short {entry.short_exchange} / long {entry.long_exchange}",
+            _bold(f"{index}. {entry.symbol} - {_funding_decision(entry)}"),
             (
-                f"Rates B/O: `{format_funding_snapshot(entry.bybit)}` / "
-                f"`{format_funding_snapshot(entry.okx)}` | next B/O: "
+                f"Trade: short {escape(entry.short_exchange)} / "
+                f"long {escape(entry.long_exchange)}"
+            ),
+            (
+                f"Rates B/O: {_code(format_funding_snapshot(entry.bybit))} / "
+                f"{_code(format_funding_snapshot(entry.okx))} | next B/O: "
                 f"{_format_funding_time(entry.bybit.next_funding_at)} "
                 f"({entry.bybit.interval_hours or 8:g}h) / "
                 f"{_format_funding_time(entry.okx.next_funding_at)} "
                 f"({entry.okx.interval_hours or 8:g}h)"
             ),
             (
-                f"Gross `{entry.funding_diff * 100:.3f}%` (${gross_usdt:,.2f}) | "
-                f"net `{_format_rate(entry.net_edge)}` | safe `{safe_text}`"
+                f"Gross {_code(f'{entry.funding_diff * 100:.3f}%')} "
+                f"(${gross_usdt:,.2f}) | net {_code(_format_rate(entry.net_edge))} | "
+                f"safe {_code(safe_text)}"
             ),
             (
-                f"Costs fee/spread/slip: `{entry.round_trip_fee_rate * 100:.3f}%`/"
-                f"`{_format_rate(entry.spread_cost_rate)}`/"
-                f"`{_format_rate(entry.slippage_cost_rate)}`"
+                "Costs fee/spread/slip: "
+                f"{_code(f'{entry.round_trip_fee_rate * 100:.3f}%')}/"
+                f"{_code(_format_rate(entry.spread_cost_rate))}/"
+                f"{_code(_format_rate(entry.slippage_cost_rate))}"
             ),
             f"Persistence: {persistence} | {_format_liquidity(entry)}",
         ]
         if entry.warnings:
-            block.append(f"Caution: {'; '.join(entry.warnings)}")
+            block.append(f"Caution: {escape('; '.join(entry.warnings))}")
         block.append("")
 
         candidate = "\n".join(lines + block).rstrip()
@@ -171,12 +199,17 @@ def format_extreme_funding_alert(entries: list[FundingEntry]) -> str | None:
     if not entries:
         return None
 
-    lines = ["🚨 *EXTREME FUNDING ALERT*", ""]
-    for entry in entries:
-        lines.append(
-            f"[{entry.symbol}](https://www.bybit.com/trade/usdt/{entry.symbol}): "
-            f"{entry.bybit_rate * 100:.4f}% {format_okx_bracket(entry.okx_rate)}"
+    lines = [f"🚨 {_bold('EXTREME FUNDING ALERT')}", ""]
+    for index, entry in enumerate(entries, start=1):
+        candidate = (
+            f"{index}. {_symbol_link(entry.symbol)}: "
+            f"{_code(f'{entry.bybit_rate * 100:.4f}%')} "
+            f"{escape(format_okx_bracket(entry.okx_rate))}"
         )
+        if len("\n".join(lines + [candidate])) > 3900:
+            lines.append("Additional alerts omitted for message length.")
+            break
+        lines.append(candidate)
     return "\n".join(lines)
 
 
@@ -189,28 +222,26 @@ def format_turnover_reports(
         return "No turnover data available.", None
 
     half = 15
-    first_half = entries[:half]
-    second_half = entries[half:]
-    order_label = "Highest" if order == "max" else "Lowest"
-
-    lines_1 = [f"*{order_label} 24H turnover ({offset + 1}-{offset + len(first_half)})*", ""]
-    for index, entry in enumerate(first_half, start=offset + 1):
-        lines_1.append(
-            f"{index}. [{entry.symbol}](https://www.bybit.com/trade/usdt/{entry.symbol}): "
-            f"{format_turnover_value(entry.turnover_24h)}"
-        )
-    report_1 = "\n".join(lines_1)
-
-    if not second_half:
-        return report_1, None
-
-    lines_2 = [f"*{order_label} 24H turnover ({offset + half + 1}-{offset + len(entries)})*", ""]
-    for index, entry in enumerate(second_half, start=offset + half + 1):
-        lines_2.append(
-            f"{index}. [{entry.symbol}](https://www.bybit.com/trade/usdt/{entry.symbol}): "
-            f"{format_turnover_value(entry.turnover_24h)}"
-        )
-    return report_1, "\n".join(lines_2)
+    reports: list[str] = []
+    for part_index, part in enumerate((entries[:half], entries[half:])):
+        if not part:
+            continue
+        part_offset = offset + part_index * half
+        order_label = "Highest" if order == "max" else "Lowest"
+        lines = [
+            _bold(
+                f"{order_label} rolling 24H turnover "
+                f"({part_offset + 1}-{part_offset + len(part)})"
+            ),
+            "",
+        ]
+        for index, entry in enumerate(part, start=part_offset + 1):
+            lines.append(
+                f"{index}. {_symbol_link(entry.symbol)}: "
+                f"{_code(format_turnover_value(entry.turnover_24h))}"
+            )
+        reports.append("\n".join(lines))
+    return reports[0], reports[1] if len(reports) > 1 else None
 
 
 def format_avg_price(val: float | None) -> str:
@@ -232,48 +263,49 @@ def format_volatility_report(
     turnover_text: str,
 ) -> str:
     return (
-        f"📊 *{symbol} based on {candles_count} candles*\n\n"
-        "📝 *DAILY STATS (close to close)*\n"
+        f"📊 {_bold(f'{symbol} based on {candles_count} candles')}\n\n"
+        f"📝 {_bold('DAILY STATS (close to close)')}\n"
         f"Volatility (Day): {stats.vol_day * 100:.2f}%\n"
         f"Volatility (Week): {stats.vol_week * 100:.2f}%\n"
         f"Max daily surge: {stats.max_daily_surge * 100:.2f}%\n"
         f"Max daily crash: {stats.max_daily_crash * 100:.2f}%\n\n"
-        "⬆️ *INTRADAY PUMP EXTREMES*\n"
-        "=> open / high\n"
-        f"Biggest Pump: {stats.max_pump_val * 100:.2f}% on {stats.max_pump_date}\n"
+        f"⬆️ {_bold('INTRADAY PUMP EXTREMES')}\n"
+        "=&gt; open / high\n"
+        f"Biggest Pump: {stats.max_pump_val * 100:.2f}% on {escape(stats.max_pump_date)}\n"
         f"Average Pump: {stats.avg_pump * 100:.2f}%\n"
         f"Pump Deviation (Std): {stats.std_pump * 100:.2f}%\n\n"
-        "⬇️ *INTRADAY DUMP EXTREMES*\n"
-        "=> open / low\n"
-        f"Worst Dump: {stats.max_dump_val * 100:.2f}% on {stats.max_dump_date}\n"
+        f"⬇️ {_bold('INTRADAY DUMP EXTREMES')}\n"
+        "=&gt; open / low\n"
+        f"Worst Dump: {stats.max_dump_val * 100:.2f}% on {escape(stats.max_dump_date)}\n"
         f"Average Dump: {stats.avg_dump * 100:.2f}%\n"
         f"Dump Deviation (Std): {stats.std_dump * 100:.2f}%\n\n"
-        "↕️ *ATR (Average True Range)*\n"
+        f"↕️ {_bold('ATR (Average True Range)')}\n"
         f"ATR 14: {stats.atr_14:.6f}\n"
         f"ATR 28: {stats.atr_28:.6f}\n"
         f"ATR 28 to close: {stats.atr_relative * 100:.2f}%\n\n"
-        "📈 *MARTINGALE BASED ON PERCENTILES*\n"
+        f"📈 {_bold('MARTINGALE BASED ON PERCENTILES')}\n"
         f"1st DCA (75%): {stats.p75_pump * 100:.2f}%\n"
         f"2nd DCA (80%): {stats.p80_pump * 100:.2f}%\n"
         f"3rd DCA (85%): {stats.p85_pump * 100:.2f}%\n"
         f"4th DCA (90%): {stats.p90_pump * 100:.2f}%\n"
         f"5th DCA (95%): {stats.p95_pump * 100:.2f}%\n"
         f"6th DCA (99%): {stats.p99_pump * 100:.2f}%\n\n"
-        "*DECISION CONTEXT*\n"
-        f"Coverage: {stats.sample_start} to {stats.sample_end} ({stats.data_confidence})\n"
+        f"{_bold('DECISION CONTEXT')}\n"
+        f"Coverage: {escape(stats.sample_start)} to {escape(stats.sample_end)} "
+        f"({escape(stats.data_confidence)})\n"
         f"Downside deviation: {stats.downside_deviation * 100:.2f}%\n"
         f"Maximum drawdown: {stats.max_drawdown * 100:.2f}%\n"
         f"Close vs SMA 30: {_format_rate(stats.distance_to_sma_30)}\n"
         f"Close vs VWAP 30: {_format_rate(stats.distance_to_vwap_30)}\n"
         f"Average daily turnover (30D): {_format_usdt(stats.avg_turnover_30)}\n"
         f"Liquidity-adjusted ATR: {stats.liquidity_adjusted_atr * 100:.2f}%\n\n"
-        "🔄 *ROLLING 24H TURNOVER*\n"
-        f"{turnover_text}\n\n"
-        "✖️ *AVG DAILY PRICE LAST*\n"
-        f"10 days: `{format_avg_price(stats.avg_price_10)}`\n"
-        f"30 days: `{format_avg_price(stats.avg_price_30)}`\n"
-        f"60 days: `{format_avg_price(stats.avg_price_60)}`\n"
-        f"90 days: `{format_avg_price(stats.avg_price_90)}`"
+        f"🔄 {_bold('ROLLING 24H TURNOVER')}\n"
+        f"{escape(turnover_text)}\n\n"
+        f"✖️ {_bold('AVG DAILY PRICE LAST')}\n"
+        f"10 days: {_code(format_avg_price(stats.avg_price_10))}\n"
+        f"30 days: {_code(format_avg_price(stats.avg_price_30))}\n"
+        f"60 days: {_code(format_avg_price(stats.avg_price_60))}\n"
+        f"90 days: {_code(format_avg_price(stats.avg_price_90))}"
     )
 
 
@@ -281,14 +313,17 @@ def format_scan_report(results: list[tuple[str, float]]) -> str:
     if not results:
         return "No volatile markets found during scan."
 
-    lines = ["*Top Volatile Markets (by ATR)*", ""]
+    lines = [_bold("Top Volatile Markets (by ATR)"), ""]
     for index, (symbol, atr) in enumerate(results, start=1):
         lines.append(
-            f"{index}. [{symbol}](https://www.bybit.com/trade/usdt/{symbol}): "
-            f"{atr * 100:.2f}% ATR"
+            f"{index}. {_symbol_link(symbol)}: {_code(f'{atr * 100:.2f}% ATR')}"
         )
     return "\n".join(lines)
 
 
 def format_surge_report(symbol: str, surge_pct: float, date_str: str) -> str:
-    return f"MAX SURGE {symbol.upper()}\n{surge_pct * 100:.0f}%\n{date_str}"
+    return (
+        f"{_bold(f'MAX SURGE {symbol.upper()}')}\n"
+        f"{_code(f'{surge_pct * 100:.0f}%')}\n"
+        f"{escape(date_str)}"
+    )

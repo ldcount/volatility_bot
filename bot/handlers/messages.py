@@ -69,7 +69,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         turnover_text,
     )
     # Update status message with volatility report
-    await status_message.edit_text(report, parse_mode="Markdown")
+    await status_message.edit_text(report, parse_mode="HTML")
 
     # Exchange klines provide completed hourly turnover without depending on
     # how long this bot process has been recording ticker snapshots.
@@ -112,19 +112,19 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             )
 
             caption_text = (
-                f"📊 *{target_symbol} Hourly Turnover*\n"
+                f"📊 <b>{target_symbol} Hourly Turnover</b>\n"
                 f"Period: last {len(data)} completed 1H candles\n\n"
-                f"• *Latest*: `{format_turnover_value(latest_turnover)}` ({latest_dt})\n"
-                f"• *Change vs prior hour*: `{change_text}`\n"
-                f"• *Average*: `{format_turnover_value(avg_turnover)}`\n"
-                f"• *Maximum*: `{format_turnover_value(max_turnover)}`\n"
-                f"• *Minimum*: `{format_turnover_value(min_turnover)}`"
+                f"• <b>Latest</b>: <code>{format_turnover_value(latest_turnover)}</code> ({latest_dt})\n"
+                f"• <b>Change vs prior hour</b>: <code>{change_text}</code>\n"
+                f"• <b>Average</b>: <code>{format_turnover_value(avg_turnover)}</code>\n"
+                f"• <b>Maximum</b>: <code>{format_turnover_value(max_turnover)}</code>\n"
+                f"• <b>Minimum</b>: <code>{format_turnover_value(min_turnover)}</code>"
             )
 
             await update.message.reply_photo(
                 photo=chart_bytes,
                 caption=caption_text,
-                parse_mode="Markdown",
+                parse_mode="HTML",
             )
         except Exception as exc:
             print(f"[Messages] Error generating/sending turnover chart for {target_symbol}: {exc}")

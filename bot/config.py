@@ -11,6 +11,8 @@ DEFAULT_OKX_TAKER_FEE_RATE = 0.0005
 DEFAULT_FUNDING_SAFETY_HAIRCUT_RATIO = 0.25
 DEFAULT_FUNDING_HISTORY_SAMPLES = 6
 DEFAULT_FUNDING_PREFILTER_LIMIT = 80
+DEFAULT_ALERT_COOLDOWN = 3600
+DEFAULT_ALERT_MATERIAL_CHANGE = 0.001
 
 
 def load_environment() -> None:
@@ -68,3 +70,11 @@ def get_funding_history_samples() -> int:
 
 def get_funding_prefilter_limit() -> int:
     return int(os.getenv("FUNDING_PREFILTER_LIMIT", DEFAULT_FUNDING_PREFILTER_LIMIT))
+
+
+def get_default_alert_cooldown() -> int:
+    return int(os.getenv("ALERT_COOLDOWN", DEFAULT_ALERT_COOLDOWN))
+
+
+def get_alert_material_change() -> float:
+    return float(os.getenv("ALERT_MATERIAL_CHANGE", DEFAULT_ALERT_MATERIAL_CHANGE))

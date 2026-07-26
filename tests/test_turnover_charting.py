@@ -43,6 +43,11 @@ class TurnoverDatabaseTests(unittest.TestCase):
             table = cursor.fetchone()
             self.assertIsNotNone(table)
 
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='chat_settings'")
+            self.assertIsNotNone(cursor.fetchone())
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='alert_state'")
+            self.assertIsNotNone(cursor.fetchone())
+
             # Verify index exists
             cursor.execute("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_symbol_timestamp'")
             index = cursor.fetchone()

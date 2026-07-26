@@ -74,9 +74,16 @@ class FundingServiceTests(unittest.TestCase):
 
         negative = rank_funding_entries(tickers, positive=False)
         positive = rank_funding_entries(tickers, positive=True)
+        second_negative = rank_funding_entries(
+            tickers,
+            positive=False,
+            limit=1,
+            offset=1,
+        )
 
         self.assertEqual(negative, [("BBBUSDT", -0.025), ("AAAUSDT", -0.01)])
         self.assertEqual(positive, [("CCCUSDT", 0.03), ("DDDUSDT", 0.01)])
+        self.assertEqual(second_negative, [("AAAUSDT", -0.01)])
 
 
 class TurnoverServiceTests(unittest.TestCase):

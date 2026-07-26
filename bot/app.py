@@ -1,19 +1,28 @@
 import logging
 
 from telegram.error import NetworkError
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
+from telegram.ext import (
+    ApplicationBuilder,
+    CallbackQueryHandler,
+    CommandHandler,
+    MessageHandler,
+    filters,
+)
 
 from bot.handlers.commands import (
     frequency,
     funding_diff,
     help_command,
     negative,
+    pagination_callback,
     positive,
     rate,
     scan,
     start,
+    stop,
     surge,
     turnover,
+    cooldown,
 )
 from bot.handlers.messages import handle_message
 from bot.ui import configure_bot_ui
@@ -42,7 +51,7 @@ async def log_error(update, context) -> None:
 
 async def on_startup(application) -> None:
     from bot.services.db import init_db
-    from bot.services.jobs import start_global_jobs
+    from bot.services.jobs import restore_scanning_jobs, start_global_jobs
 
     # 1. Initialize SQLite Database
     init_db()
@@ -52,6 +61,9 @@ async def on_startup(application) -> None:
 
     # 3. Start system-wide background jobs (e.g. hourly turnover logger)
     start_global_jobs(application)
+
+    # 4. Restore per-chat alert subscriptions and their saved intervals.
+    restore_scanning_jobs(application)
 
 
 def build_application(token: str):
@@ -65,7 +77,12 @@ def build_application(token: str):
     application.add_handler(CommandHandler("surge", surge))
     application.add_handler(CommandHandler("rate", rate))
     application.add_handler(CommandHandler("frequency", frequency))
+    application.add_handler(CommandHandler("cooldown", cooldown))
+    application.add_handler(CommandHandler("stop", stop))
     application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(
+        CallbackQueryHandler(pagination_callback, pattern=r"^page:")
+    )
     application.add_handler(
         MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message)
     )

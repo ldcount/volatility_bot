@@ -6,12 +6,13 @@ from unittest.mock import patch
 from bot.clients.okx import okx_inst_id_to_symbol
 from bot.models import (
     FundingDiffEntry,
+    FundingEntry,
     FundingSnapshot,
     LiquidityMetrics,
     OkxInstrument,
     OrderBookSnapshot,
 )
-from bot.reports import format_funding_diff_report
+from bot.reports import format_funding_diff_report, format_funding_report
 from bot.services.funding_diff import analyze_orderbook, get_top_funding_diff
 
 
@@ -103,6 +104,16 @@ class FundingDiffServiceTests(unittest.TestCase):
 
 
 class FundingDiffReportTests(unittest.TestCase):
+    def test_funding_report_escapes_unexpected_symbol_text(self) -> None:
+        report = format_funding_report(
+            [FundingEntry(symbol="BAD<&USDT", bybit_rate=-0.01, okx_rate=None)],
+            "Negative <funding>",
+        )
+
+        self.assertIn("Negative &lt;funding&gt;", report)
+        self.assertIn("BAD&lt;&amp;USDT", report)
+        self.assertNotIn("BAD<&USDT", report)
+
     def test_format_funding_diff_report_includes_decision_inputs(self) -> None:
         settlement = datetime(2026, 7, 26, 16, tzinfo=UTC)
         liquidity = LiquidityMetrics(
@@ -150,8 +161,12 @@ class FundingDiffReportTests(unittest.TestCase):
         self.assertIn("Funding arbitrage decision screen", report)
         self.assertIn("ACTIONABLE CANDIDATE", report)
         self.assertIn("short Bybit / long OKX", report)
-        self.assertIn("Rates B/O: `0.400%/8h` / `0.000%/8h`", report)
-        self.assertIn("safe `0.060% ($0.60)`", report)
+        self.assertIn(
+            "Rates B/O: <code>0.400%/8h</code> / <code>0.000%/8h</code>",
+            report,
+        )
+        self.assertIn("safe <code>0.060% ($0.60)</code>", report)
+        self.assertIn("26 Jul 16:00 UTC (8h)", report)
         self.assertIn("Persistence: 67%/6", report)
         self.assertIn("OI B/O", report)
 

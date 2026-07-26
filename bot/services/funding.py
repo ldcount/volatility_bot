@@ -10,6 +10,7 @@ def rank_funding_entries(
     *,
     positive: bool,
     limit: int = 10,
+    offset: int = 0,
 ) -> list[tuple[str, float]]:
     ranked: list[tuple[str, float]] = []
     for ticker in tickers:
@@ -32,22 +33,38 @@ def rank_funding_entries(
             ranked.append((symbol, parsed_rate))
 
     ranked.sort(key=lambda item: item[1], reverse=positive)
-    return ranked[:limit]
+    return ranked[offset : offset + limit]
 
 
-def get_top_negative_funding(limit: int = 10) -> list[FundingEntry]:
+def get_top_negative_funding(
+    limit: int = 10,
+    offset: int = 0,
+) -> list[FundingEntry]:
     tickers = fetch_all_tickers()
     return [
         FundingEntry(symbol=symbol, bybit_rate=rate, okx_rate=fetch_funding_rate(symbol))
-        for symbol, rate in rank_funding_entries(tickers, positive=False, limit=limit)
+        for symbol, rate in rank_funding_entries(
+            tickers,
+            positive=False,
+            limit=limit,
+            offset=offset,
+        )
     ]
 
 
-def get_top_positive_funding(limit: int = 10) -> list[FundingEntry]:
+def get_top_positive_funding(
+    limit: int = 10,
+    offset: int = 0,
+) -> list[FundingEntry]:
     tickers = fetch_all_tickers()
     return [
         FundingEntry(symbol=symbol, bybit_rate=rate, okx_rate=fetch_funding_rate(symbol))
-        for symbol, rate in rank_funding_entries(tickers, positive=True, limit=limit)
+        for symbol, rate in rank_funding_entries(
+            tickers,
+            positive=True,
+            limit=limit,
+            offset=offset,
+        )
     ]
 
 

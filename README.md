@@ -15,12 +15,17 @@ The runtime entrypoint is `main.py`.
 | Command | Description |
 |---------|-------------|
 | `/start` | Initialize the bot and start the background funding scan for the current chat. |
-| `/negative` | Show the top 10 negative funding rates on Bybit with OKX comparison. |
-| `/positive` | Show the top 10 positive funding rates on Bybit with OKX comparison. |
-| `/turnover [offset]` | Show 30 symbols with highest 24H turnover. |
+| `/negative` | Show negative funding rates, 10 per page, with OKX comparison. |
+| `/positive` | Show positive funding rates, 10 per page, with OKX comparison. |
+| `/funding_diff` | Show 10 cost-aware Bybit/OKX funding arbitrage candidates. |
+| `/turnover` | Show rolling 24H turnover with inline pagination. |
+| `/scan` | Screen the 50 highest-turnover markets by ATR. |
+| `/surge BTC 5` | Find the largest historical BTC surge inside a five-day window. |
 | `/rate` | Show the current per-chat funding alert threshold. |
 | `/rate -1,2` | Set the per-chat funding alert threshold to `-1.2%`. |
-| `/frequency <minutes>` | Set the funding background scan interval. |
+| `/frequency [minutes]` | Show or set the background scan interval. |
+| `/cooldown [minutes]` | Show or set the material-change alert cooldown. |
+| `/stop` | Persistently disable background alerts for the current chat. |
 | `/help` | Show help. |
 | `<TICKER>` | Run the volatility report for a symbol such as `BTC` or `PEPE`. |
 
@@ -62,7 +67,9 @@ BOT_ENV=dev
 TELEGRAM_TOKEN_PROD=<your-telegram-bot-token>
 TELEGRAM_TOKEN_DEV=<your-dev-telegram-bot-token>
 FUNDING_THRESHOLD=-0.015
-SCAN_INTERVAL=1200
+SCAN_INTERVAL=18000
+ALERT_COOLDOWN=3600
+ALERT_MATERIAL_CHANGE=0.001
 FUNDING_NOTIONAL_USDT=1000
 BYBIT_TAKER_FEE_RATE=0.00055
 OKX_TAKER_FEE_RATE=0.0005
@@ -73,6 +80,12 @@ FUNDING_PREFILTER_LIMIT=80
 
 `BOT_ENV=dev` uses `TELEGRAM_TOKEN_DEV`.
 `BOT_ENV=prod` uses `TELEGRAM_TOKEN_PROD`.
+
+`SCAN_INTERVAL=18000` is the five-hour default. Per-chat changes made with
+`/rate`, `/frequency`, and `/cooldown`, together with alert subscriptions and
+deduplication state, are stored in SQLite and restored when the bot restarts.
+An alert is sent when a symbol crosses into an alert condition, or when its
+tracked rate changes by at least `ALERT_MATERIAL_CHANGE` after the saved cooldown.
 
 The funding arbitrage screen normalizes both exchanges to an 8-hour horizon,
 then estimates a net edge for `FUNDING_NOTIONAL_USDT` after round-trip taker

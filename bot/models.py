@@ -138,3 +138,12 @@ class FundingDiffEntry:
 class TurnoverEntry:
     symbol: str
     turnover_24h: float
+
+
+@dataclass(frozen=True)
+class ChatSettings:
+    chat_id: int
+    funding_threshold: float
+    scan_interval_seconds: int
+    alerts_enabled: bool
+    alert_cooldown_seconds: int

@@ -133,7 +133,7 @@ def get_top_funding_diff(limit: int = 10) -> list[FundingDiffEntry]:
             continue
 
         bybit_snapshot = bybit_funding[symbol]
-        funding_diff = abs(abs(bybit_snapshot.rate) - abs(okx_snapshot.rate))
+        funding_diff = abs(bybit_snapshot.rate - okx_snapshot.rate)
         ranked_entries.append(
             FundingDiffEntry(
                 symbol=symbol,

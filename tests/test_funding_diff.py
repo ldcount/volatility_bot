@@ -17,7 +17,7 @@ class FundingDiffServiceTests(unittest.TestCase):
     @patch("bot.services.funding_diff.fetch_funding_snapshot")
     @patch("bot.services.funding_diff.fetch_usdt_swap_instruments")
     @patch("bot.services.funding_diff.fetch_all_tickers")
-    def test_get_top_funding_diff_sorts_by_abs_diff_and_symbol(
+    def test_get_top_funding_diff_sorts_by_signed_rate_spread_and_symbol(
         self,
         mock_fetch_all_tickers,
         mock_fetch_usdt_swap_instruments,
@@ -46,7 +46,9 @@ class FundingDiffServiceTests(unittest.TestCase):
         entries = get_top_funding_diff(limit=10)
 
         self.assertEqual([entry.symbol for entry in entries], ["MIDUSDT", "AAAUSDT", "ZZZUSDT"])
-        self.assertAlmostEqual(entries[0].funding_diff, 0.03)
+        # Opposite-sign rates compound the delta-neutral funding edge:
+        # short OKX receives 1%, while long Bybit receives 4%.
+        self.assertAlmostEqual(entries[0].funding_diff, 0.05)
         self.assertEqual(entries[1].okx.details, "1h")
 
 
@@ -56,7 +58,7 @@ class FundingDiffReportTests(unittest.TestCase):
             [
                 FundingDiffEntry(
                     symbol="BTCUSDT",
-                    funding_diff=0.00025,
+                    funding_diff=0.00175,
                     bybit=FundingSnapshot(rate=0.0010, details="8h"),
                     okx=FundingSnapshot(rate=-0.00075, details="4h"),
                 )
@@ -66,9 +68,10 @@ class FundingDiffReportTests(unittest.TestCase):
         self.assertIn("💱*Funding arbitrage: Bybit - OKX*", report)
         self.assertIn("*BTCUSDT*", report)
         self.assertIn(
-            "Diff: `0.03%` | `0.10%` | `-0.07%`",
+            "Diff: `0.18%` | `0.10%` | `-0.07%`",
             report,
         )
+        self.assertIn("Direction: `Short Bybit / Long OKX`", report)
 
 
 if __name__ == "__main__":

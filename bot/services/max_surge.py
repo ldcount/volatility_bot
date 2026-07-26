@@ -14,20 +14,23 @@ def calculate_max_surge(candles: list[Candle], days_window: int) -> tuple[float,
     max_surge = -float("inf")
     best_date = ""
 
-    # Iterate over all possible N-day windows in the list of candles
+    # Find the largest low-to-later-high draw-up inside every N-day window.
     for i in range(len(candles) - days_window + 1):
-        day_one_low = candles[i].low
-        day_n_high = candles[i + days_window - 1].high
+        lowest_price = float("inf")
+        lowest_price_date = ""
 
-        # Prevent division by zero or invalid prices
-        if day_one_low <= 0:
-            continue
+        for candle in candles[i : i + days_window]:
+            if candle.low <= 0 or candle.high <= 0:
+                continue
 
-        surge = (day_n_high - day_one_low) / day_one_low
+            if candle.low < lowest_price:
+                lowest_price = candle.low
+                lowest_price_date = candle.date
 
-        if surge > max_surge:
-            max_surge = surge
-            best_date = candles[i].date
+            surge = (candle.high - lowest_price) / lowest_price
+            if surge > max_surge:
+                max_surge = surge
+                best_date = lowest_price_date
 
     if max_surge == -float("inf"):
         return None

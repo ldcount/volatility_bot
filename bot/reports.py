@@ -52,6 +52,13 @@ def format_funding_diff_report(entries: list[FundingDiffEntry]) -> str:
             f"`{format_funding_snapshot(entry.bybit)}` | "
             f"`{format_funding_snapshot(entry.okx)}`"
         )
+        if entry.bybit.rate > entry.okx.rate:
+            direction = "Short Bybit / Long OKX"
+        elif entry.okx.rate > entry.bybit.rate:
+            direction = "Short OKX / Long Bybit"
+        else:
+            direction = "No funding edge"
+        lines.append(f"Direction: `{direction}`")
         #lines.append("")
 
     return "\n".join(lines).rstrip()

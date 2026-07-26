@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import math
 
 from telegram import LinkPreviewOptions
 from telegram.ext import ContextTypes
@@ -30,18 +31,18 @@ def get_chat_threshold(context: ContextTypes.DEFAULT_TYPE, chat_id: int) -> floa
 
 def parse_rate_threshold(raw_value: str) -> float:
     normalized = raw_value.strip().replace("%", "").replace(",", ".")
-    threshold = float(normalized)
+    threshold_percent = float(normalized)
 
-    if threshold > 0:
-        threshold = -threshold
+    if not math.isfinite(threshold_percent):
+        raise ValueError("Threshold must be finite.")
 
-    if abs(threshold) >= 1:
-        threshold /= 100
+    if threshold_percent > 0:
+        threshold_percent = -threshold_percent
 
-    if threshold >= 0 or threshold <= -1:
+    if threshold_percent >= 0 or threshold_percent <= -100:
         raise ValueError("Threshold must be a negative percentage.")
 
-    return threshold
+    return threshold_percent / 100
 
 
 async def scan_funding_job(context: ContextTypes.DEFAULT_TYPE) -> None:

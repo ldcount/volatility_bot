@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime
+import time
+from datetime import UTC, datetime
 
 import requests
 from pybit.unified_trading import HTTP
@@ -10,6 +11,7 @@ from bot.models import Candle
 
 BYBIT_TICKERS_URL = "https://api.bybit.com/v5/market/tickers"
 BYBIT_INSTRUMENTS_URL = "https://api.bybit.com/v5/market/instruments-info"
+MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000
 
 
 def fetch_all_tickers(category: str = "linear") -> list[dict]:
@@ -79,11 +81,16 @@ def fetch_candles(symbol: str, category: str, interval: str = "D", limit: int = 
         return None
 
     candles: list[Candle] = []
+    current_time_ms = int(time.time() * 1000)
     for candle in reversed(raw_candles):
-        timestamp = int(candle[0]) / 1000
+        start_time_ms = int(candle[0])
+        if interval == "D" and start_time_ms + MILLISECONDS_PER_DAY > current_time_ms:
+            continue
+
+        timestamp = start_time_ms / 1000
         candles.append(
             Candle(
-                date=datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d"),
+                date=datetime.fromtimestamp(timestamp, tz=UTC).strftime("%Y-%m-%d"),
                 open=float(candle[1]),
                 high=float(candle[2]),
                 low=float(candle[3]),

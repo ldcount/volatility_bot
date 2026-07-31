@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import datetime
 
 from telegram import Update
 from telegram.ext import ContextTypes
@@ -10,6 +10,7 @@ from bot.reports import format_turnover_value, format_volatility_report
 from bot.services.charts import generate_turnover_chart
 from bot.services.db import get_hourly_history
 from bot.services.jobs import start_scanning_job
+from bot.services.timezones import get_display_timezone
 from bot.services.turnover import get_symbol_turnover_text
 from bot.services.volatility import (
     analyze_market_data,
@@ -93,8 +94,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             )
             latest_dt = datetime.fromtimestamp(
                 data[-1]["timestamp"],
-                tz=UTC,
-            ).strftime("%m/%d %H:%M UTC")
+                tz=get_display_timezone(),
+            ).strftime("%m/%d %H:%M %Z")
             change_text = (
                 "N/A" if snapshot_change is None else f"{snapshot_change * 100:+.1f}%"
             )

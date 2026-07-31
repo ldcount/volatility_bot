@@ -76,10 +76,13 @@ OKX_TAKER_FEE_RATE=0.0005
 FUNDING_SAFETY_HAIRCUT_RATIO=0.25
 FUNDING_HISTORY_SAMPLES=6
 FUNDING_PREFILTER_LIMIT=80
+DISPLAY_TIMEZONE=Europe/Paris
 ```
 
 `BOT_ENV=dev` uses `TELEGRAM_TOKEN_DEV`.
 `BOT_ENV=prod` uses `TELEGRAM_TOKEN_PROD`.
+
+Turnover chart axes and latest-snapshot captions use `DISPLAY_TIMEZONE`.
 
 `SCAN_INTERVAL=18000` is the five-hour default. Per-chat changes made with
 `/rate`, `/frequency`, and `/cooldown`, together with alert subscriptions and

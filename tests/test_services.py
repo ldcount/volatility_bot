@@ -1,8 +1,9 @@
 import unittest
+from unittest.mock import patch
 
 from bot.models import Candle
 from bot.services.funding import rank_funding_entries
-from bot.services.turnover import rank_turnover_entries
+from bot.services.turnover import get_symbol_turnover_text, rank_turnover_entries
 from bot.services.volatility import analyze_market_data, normalize_symbol
 
 
@@ -100,6 +101,44 @@ class TurnoverServiceTests(unittest.TestCase):
 
         self.assertEqual([entry.symbol for entry in lowest], ["BBBUSDT", "AAAUSDT"])
         self.assertEqual([entry.symbol for entry in highest], ["AAAUSDT"])
+
+    def test_symbol_turnover_refreshes_current_hour_snapshot(self) -> None:
+        ticker = {
+            "symbol": "BTCUSDT",
+            "turnover24h": "1500000",
+            "volume24h": "25",
+        }
+        with (
+            patch(
+                "bot.services.turnover.fetch_symbol_ticker",
+                return_value=ticker,
+            ),
+            patch("bot.services.turnover.save_hourly_snapshots") as save,
+        ):
+            result = get_symbol_turnover_text("BTCUSDT", "linear")
+
+        self.assertEqual(result, "1.50 M USDT")
+        save.assert_called_once_with([ticker])
+
+    def test_snapshot_failure_does_not_suppress_current_turnover(self) -> None:
+        ticker = {
+            "symbol": "BTCUSDT",
+            "turnover24h": "1500000",
+            "volume24h": "25",
+        }
+        with (
+            patch(
+                "bot.services.turnover.fetch_symbol_ticker",
+                return_value=ticker,
+            ),
+            patch(
+                "bot.services.turnover.save_hourly_snapshots",
+                side_effect=OSError("database unavailable"),
+            ),
+        ):
+            result = get_symbol_turnover_text("BTCUSDT", "linear")
+
+        self.assertEqual(result, "1.50 M USDT")
 
 
 if __name__ == "__main__":

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from bot.clients.bybit import fetch_all_tickers, fetch_symbol_turnover
+from bot.clients.bybit import fetch_all_tickers, fetch_symbol_ticker
 from bot.models import TurnoverEntry
 from bot.reports import format_turnover_value
+from bot.services.db import save_hourly_snapshots
 
 
 def rank_turnover_entries(
@@ -39,7 +40,19 @@ def get_ranked_turnover(order: str = "min", offset: int = 0, total: int = 30) ->
 
 
 def get_symbol_turnover_text(symbol: str, category: str = "linear") -> str:
-    turnover = fetch_symbol_turnover(symbol, category)
-    if turnover is None:
+    ticker = fetch_symbol_ticker(symbol, category)
+    if ticker is None:
         return "N/A"
-    return format_turnover_value(turnover)
+
+    # Refresh this symbol's current-hour snapshot before its chart is read.
+    # INSERT OR REPLACE updates an existing point in the same hourly bucket.
+    try:
+        save_hourly_snapshots([ticker])
+    except Exception as exc:
+        # A persistence problem should not suppress the otherwise valid report.
+        print(f"[Turnover] Could not refresh snapshot for {symbol}: {exc}")
+    turnover = ticker.get("turnover24h")
+    try:
+        return format_turnover_value(float(turnover))
+    except (TypeError, ValueError):
+        return "N/A"

@@ -13,6 +13,7 @@ DEFAULT_FUNDING_HISTORY_SAMPLES = 6
 DEFAULT_FUNDING_PREFILTER_LIMIT = 80
 DEFAULT_ALERT_COOLDOWN = 3600
 DEFAULT_ALERT_MATERIAL_CHANGE = 0.001
+DEFAULT_DISPLAY_TIMEZONE = "Europe/Paris"
 
 
 def load_environment() -> None:
@@ -78,3 +79,7 @@ def get_default_alert_cooldown() -> int:
 
 def get_alert_material_change() -> float:
     return float(os.getenv("ALERT_MATERIAL_CHANGE", DEFAULT_ALERT_MATERIAL_CHANGE))
+
+
+def get_display_timezone_name() -> str:
+    return os.getenv("DISPLAY_TIMEZONE", DEFAULT_DISPLAY_TIMEZONE).strip()

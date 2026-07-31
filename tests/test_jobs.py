@@ -1,12 +1,14 @@
 import unittest
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from bot.models import ChatSettings
 from bot.services.jobs import (
     parse_rate_threshold,
     restore_scanning_jobs,
     scan_funding_job,
+    seconds_until_next_hour,
+    start_global_jobs,
 )
 
 
@@ -157,6 +159,33 @@ class RestoreSubscriptionsTests(unittest.TestCase):
             321,
             interval_seconds=1_800,
         )
+
+
+class GlobalTurnoverJobTests(unittest.TestCase):
+    def test_delay_is_aligned_to_next_clock_hour(self) -> None:
+        self.assertEqual(seconds_until_next_hour(3 * 3600 + 15 * 60), 45 * 60)
+        self.assertEqual(seconds_until_next_hour(3 * 3600), 3600)
+
+    def test_startup_snapshot_and_aligned_repeating_job_are_registered(self) -> None:
+        job_queue = MagicMock()
+        job_queue.get_jobs_by_name.return_value = []
+        application = SimpleNamespace(job_queue=job_queue)
+
+        with patch(
+            "bot.services.jobs.seconds_until_next_hour",
+            return_value=1234,
+        ):
+            start_global_jobs(application)
+
+        job_queue.run_once.assert_called_once()
+        self.assertEqual(job_queue.run_once.call_args.kwargs["when"], 1)
+        self.assertEqual(
+            job_queue.run_once.call_args.kwargs["name"],
+            "record_hourly_turnover_startup",
+        )
+        job_queue.run_repeating.assert_called_once()
+        self.assertEqual(job_queue.run_repeating.call_args.kwargs["interval"], 3600)
+        self.assertEqual(job_queue.run_repeating.call_args.kwargs["first"], 1234)
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import io
-from datetime import UTC, datetime
+from datetime import datetime
 
 import matplotlib
 matplotlib.use("Agg")  # Thread-safe non-interactive backend
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter
+
+from bot.services.timezones import get_display_timezone
 
 
 def format_money_compact(x: float, pos: int | None = None) -> str:
@@ -41,7 +43,8 @@ def generate_turnover_chart(symbol: str, data: list[dict], mode: str) -> bytes:
     """
     timestamps = [d["timestamp"] for d in data]
     turnovers = [d["turnover"] for d in data]
-    dates = [datetime.fromtimestamp(ts, tz=UTC) for ts in timestamps]
+    display_timezone = get_display_timezone()
+    dates = [datetime.fromtimestamp(ts, tz=display_timezone) for ts in timestamps]
 
     # Use a dark background style
     plt.style.use("dark_background")
@@ -75,14 +78,23 @@ def generate_turnover_chart(symbol: str, data: list[dict], mode: str) -> bytes:
     # Format X-axis depending on mode (hourly vs daily)
     if mode == "hours":
         if len(data) <= 24:
-            ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M", tz=UTC))
+            ax.xaxis.set_major_formatter(
+                mdates.DateFormatter("%H:%M", tz=display_timezone)
+            )
             ax.xaxis.set_major_locator(mdates.HourLocator(interval=max(1, len(data) // 6)))
         else:
-            ax.xaxis.set_major_formatter(mdates.DateFormatter("%m/%d %H:%M", tz=UTC))
+            ax.xaxis.set_major_formatter(
+                mdates.DateFormatter("%m/%d %H:%M", tz=display_timezone)
+            )
             ax.xaxis.set_major_locator(mdates.HourLocator(interval=max(4, len(data) // 6)))
     else:
-        ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d", tz=UTC))
+        ax.xaxis.set_major_formatter(
+            mdates.DateFormatter("%Y-%m-%d", tz=display_timezone)
+        )
         ax.xaxis.set_major_locator(mdates.DayLocator(interval=max(1, len(data) // 6)))
+
+    timezone_label = getattr(display_timezone, "key", str(display_timezone))
+    ax.set_xlabel(f"Time ({timezone_label})", color="#cccccc")
 
     # Adjust Y-axis limit to add headroom at the top for labels, ensuring no negative values
     if turnovers:

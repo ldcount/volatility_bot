@@ -121,7 +121,7 @@ def fetch_candles(symbol: str, category: str, interval: str = "D", limit: int = 
     return candles
 
 
-def fetch_symbol_turnover(symbol: str, category: str = "linear") -> float | None:
+def fetch_symbol_ticker(symbol: str, category: str = "linear") -> dict | None:
     try:
         response = requests.get(
             BYBIT_TICKERS_URL,
@@ -141,7 +141,15 @@ def fetch_symbol_turnover(symbol: str, category: str = "linear") -> float | None
     if not tickers:
         return None
 
-    turnover = tickers[0].get("turnover24h")
+    return tickers[0]
+
+
+def fetch_symbol_turnover(symbol: str, category: str = "linear") -> float | None:
+    ticker = fetch_symbol_ticker(symbol, category)
+    if ticker is None:
+        return None
+
+    turnover = ticker.get("turnover24h")
     return float(turnover) if turnover else None
 
 

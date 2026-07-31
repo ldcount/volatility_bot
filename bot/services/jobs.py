@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import math
+import time
 
 from telegram import LinkPreviewOptions
 from telegram.ext import ContextTypes
@@ -238,6 +239,13 @@ async def record_hourly_turnover_job(context: ContextTypes.DEFAULT_TYPE) -> None
         print(f"[Jobs] Error in record_hourly_turnover_job: {exc}")
 
 
+def seconds_until_next_hour(timestamp: float | None = None) -> float:
+    """Return the delay until the next UTC clock-hour boundary."""
+    current_time = time.time() if timestamp is None else timestamp
+    elapsed_in_hour = current_time % 3600
+    return 3600 if elapsed_in_hour == 0 else 3600 - elapsed_in_hour
+
+
 def start_global_jobs(application) -> None:
     """
     Starts system-wide background jobs (like recording hourly turnover).
@@ -250,10 +258,17 @@ def start_global_jobs(application) -> None:
     # Check if job already exists to avoid duplication
     jobs = application.job_queue.get_jobs_by_name("record_hourly_turnover")
     if not jobs:
+        application.job_queue.run_once(
+            record_hourly_turnover_job,
+            when=1,
+            name="record_hourly_turnover_startup",
+        )
         application.job_queue.run_repeating(
             record_hourly_turnover_job,
             interval=3600,
-            first=10,  # Run first time after 10 seconds, then every 1 hour
+            first=seconds_until_next_hour(),
             name="record_hourly_turnover",
         )
-        print("[Jobs] Registered global hourly turnover recording job.")
+        print(
+            "[Jobs] Registered startup turnover snapshot and clock-hour recording job."
+        )
